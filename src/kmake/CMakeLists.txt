@@ -1,9 +1,9 @@
- 
 cmake_minimum_required(VERSION 3.28)
 include("../../CMakeCommons.cmake")
 file(GLOB_RECURSE kmake_SRC CONFIGURE_DEPENDS  "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.c" "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 
 add_executable(kmake  ${kmake_SRC})
+
 PrecompileStdHeaders(kmake)
 
 find_package(Lua REQUIRED)

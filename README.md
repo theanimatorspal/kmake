@@ -21,7 +21,7 @@
 - 🚀 **One-Command Setup** – Install CMake, vcpkg, and configure everything in seconds
 - 📦 **Automatic Dependency Management** – Just declare what you need, kmake handles vcpkg
 - 🎨 **Project Templates** – Initialize new projects with sensible defaults instantly
-- 🔧 **Smart Build Configuration** – Pre-configured CMake presets for Debug/Release/Android
+- 🔧 **Smart Build Configuration** – Pre-configured CMake presets
 - 🧩 **Module System** – Create translation units with proper headers/sources automatically
 - 🌐 **Cross-Platform** – Works seamlessly on Windows, Linux, and macOS
 - 🔒 **Isolated Installation** – Keeps your system clean, doesn't mess with existing tools
@@ -77,23 +77,30 @@ This creates a `build.py` configuration file.
 Edit the generated `build.py`:
 
 ```python
-PROJECT_NAME = "my_awesome_game"
+PROJECT_NAME = "kmake"
+PROJECT_TYPE = "binary"
 PROJECT_LANGUAGE = "C++"
 PROJECT_LANGUAGE_STANDARD = "20"
 PROJECT_COMPILER = "clang"
-
 PROJECT_STRUCTURE = {
-    "engine": {
-        "type": "static-library",
-        "deps": {
-            "sdl2": {"type": "dynamic-library"},
-            "glm": {"type": "header-only"}
+    "kmakelib" : {
+        "type" : "static-library",
+        "deps" : {
+            "lua" : {
+                "type" : "static-library"
+            }
         }
     },
-    "game": {
-        "type": "binary",
-        "deps": {
-            "engine": {"type": "static-library"}  # Link to your own library
+    "kmake" : {
+        "type" : "binary",
+        "deps" : {
+            "kmakelib" : {},
+            "lua" : {
+                "type" : "static-library"
+            },
+            "sol2" : {
+                "type" : "header-only-library"
+            }
         }
     }
 }
@@ -296,18 +303,6 @@ python kmake.py self-install
 - **A C/C++ compiler** (clang, gcc, or MSVC)
 - **Ninja** (recommended, or use your platform's default generator)
 
-Install Ninja:
-```bash
-# macOS
-brew install ninja
-
-# Ubuntu/Debian
-sudo apt install ninja-build
-
-# Windows
-# Download from: https://github.com/ninja-build/ninja/releases
-```
-
 ---
 
 ## 🐛 Troubleshooting
@@ -345,11 +340,11 @@ Contributions are welcome! Here's how you can help:
 - 🔧 Submit pull requests
 
 **Roadmap Ideas:**
-- Template system (`kmake init --template vulkan-game`)
+- Template system (`kmake init --template sdl2-game`)
+- Direct Integration with github for kmake based projects
 - Dependency version locking
 - `kmake doctor` command for diagnostics
 - More dependency bundles
-- Integration with popular IDEs
 
 ---
 

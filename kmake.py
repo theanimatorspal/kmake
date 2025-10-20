@@ -120,6 +120,20 @@ def get_local_vcpkg() -> str:
             return str(local_vcpkg)
     return vcpkg
 
+def get_local_emcc() -> str:
+    emcc = shutil.which("emcc")
+    if not emcc:
+        base_dir = Path.home() / ".kmake"
+        emsdk_dir = base_dir / "emsdk" / "upstream" / "emscripten"
+        emcc_exe = "emcc.bat" if platform.system() == "Windows" else "emcc"
+        local_emcc = emsdk_dir / emcc_exe
+        
+        if local_emcc.exists():
+            return str(local_emcc)
+        else:
+            raise RuntimeError("Emscripten not found. Run 'kmake self-install' first.")
+    return emcc
+
 def get_local_cmake() -> str:
     cmake = shutil.which("cmake")
     if not cmake:
@@ -133,6 +147,20 @@ def get_local_cmake() -> str:
         else:
             raise RuntimeError("CMake not found. Run 'kmake self-install' first.")
     return cmake
+
+def get_local_ninja() -> str:
+    ninja = shutil.which("ninja")
+    if not ninja:
+        base_dir = Path.home() / ".kmake"
+        ninja_dir = base_dir / "ninja"
+        ninja_exe = "ninja.exe" if platform.system() == "Windows" else "ninja"
+        local_ninja = ninja_dir / ninja_exe
+        
+        if local_ninja.exists():
+            return str(local_ninja)
+        else:
+            raise RuntimeError("Ninja not found. Run 'kmake self-install' first.")
+    return ninja
 
 def add_to_path(path_to_add: Path):
     path_str = str(path_to_add)
@@ -219,6 +247,33 @@ def get_latest_cmake_url() -> str:
         print(f"Error fetching latest CMake URL: {e}", file=sys.stderr)
         sys.exit(1)
 
+def get_latest_ninja_url() -> str:
+    api_url = "https://api.github.com/repos/ninja-build/ninja/releases/latest"
+    system = platform.system()
+    
+    if system == "Windows":
+        identifier = "win.zip"
+    elif system == "Darwin":
+        identifier = "mac.zip"
+    elif system == "Linux":
+        identifier = "linux.zip"
+    else:
+        raise OSError(f"Unsupported OS: {system}")
+    
+    try:
+        with urllib.request.urlopen(api_url) as response:
+            data = json.loads(response.read())
+        
+        for asset in data.get("assets", []):
+            if identifier in asset.get("name", ""):
+                return asset["browser_download_url"]
+        
+        raise FileNotFoundError(f"Could not find a Ninja download link for {identifier}")
+    
+    except Exception as e:
+        print(f"Error fetching latest Ninja URL: {e}", file=sys.stderr)
+        sys.exit(1)
+
 def install_cmake(base_dir: Path, should_add_to_path : bool) -> Path:
     cmake_dir = base_dir / "cmake"
     if cmake_dir.exists():
@@ -247,6 +302,66 @@ def install_cmake(base_dir: Path, should_add_to_path : bool) -> Path:
         add_to_path(cmake_dir / "bin")
 
     return cmake_dir
+
+def install_emsdk(base_dir: Path, should_add_to_path: bool = True) -> Path:
+    emsdk_dir = base_dir / "emsdk"
+    if emsdk_dir.exists():
+        print("✅ Emscripten SDK is already installed.")
+        return emsdk_dir
+    
+    print("🚀 Installing Emscripten SDK...")
+    
+    if not shutil.which("git"):
+        raise RuntimeError("Git is required to install emsdk.")
+    
+    subprocess.run(
+        ["git", "clone", "https://github.com/emscripten-core/emsdk.git", str(emsdk_dir), "--depth=1"],
+        check=True
+    )
+    
+    emsdk_script = "emsdk.bat" if platform.system() == "Windows" else "./emsdk"
+    
+    subprocess.run([emsdk_script, "install", "latest"], cwd=emsdk_dir, shell=True, check=True)
+    subprocess.run([emsdk_script, "activate", "latest"], cwd=emsdk_dir, shell=True, check=True)
+    subprocess.run([emsdk_script, "activate", "--permanent"], cwd=emsdk_dir, shell=True, check=True)
+    
+    if should_add_to_path:
+        add_to_path(emsdk_dir)
+        add_to_path(emsdk_dir / "upstream" / "emscripten")
+    
+    print("✅ Emscripten SDK installed!")
+    return emsdk_dir
+
+def install_ninja(base_dir: Path, should_add_to_path: bool = True) -> Path:
+    ninja_dir = base_dir / "ninja"
+    if ninja_dir.exists():
+        print("✅ Ninja is already installed.")
+        return ninja_dir
+    
+    print("🚀 Installing Ninja...")
+    url = get_latest_ninja_url()
+    
+    ninja_dir.mkdir()
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        archive_name = url.split("/")[-1]
+        archive_path = Path(tmpdir) / archive_name
+        
+        print(f"🌐 Downloading {archive_name}...")
+        urllib.request.urlretrieve(url, archive_path)
+        
+        print(f"📦 Extracting to {ninja_dir}...")
+        with zipfile.ZipFile(archive_path, "r") as z:
+            z.extractall(ninja_dir)
+    
+    if platform.system() != "Windows":
+        ninja_exe = ninja_dir / "ninja"
+        ninja_exe.chmod(ninja_exe.stat().st_mode | 0o111)
+    
+    if should_add_to_path:
+        add_to_path(ninja_dir)
+    
+    return ninja_dir
 
 def install_vcpkg(base_dir: Path, should_add_to_path : bool) -> Path:
     vcpkg_dir = base_dir / "vcpkg"
@@ -290,18 +405,24 @@ def handle_self_install(args):
     base_dir = Path.home() / ".kmake"
     base_dir.mkdir(exist_ok=True)
     
-    install_self()
+    add_kmake_to_path = get_yes_no("Add kmake to PATH?", default=True)
     add_cmake_to_path = get_yes_no("Add CMake to PATH?", default=True)
     add_vcpkg_to_path = get_yes_no("Add vcpkg to PATH?", default=True)    
+    add_emsdk_to_path = get_yes_no("Add Emsdk to PATH?", default=True)
+    add_ninja_to_path = get_yes_no("Add Ninja to PATH? ⚠️ If not, You should already have Ninja installed and accesible from the path", default=True)
 
     if add_kmake_to_path:
-        add_kmake_to_path = get_yes_no("Add kmake to PATH?", default=True)
+        install_self()
+
     cmake_dir = install_cmake(base_dir, add_cmake_to_path)
     vcpkg_dir = install_vcpkg(base_dir, add_vcpkg_to_path)
+    emsdk_dir = install_emsdk(base_dir, add_emsdk_to_path)
+    ninja_dir = install_ninja(base_dir, add_ninja_to_path)
 
     print("\n🎉 Installation Complete!")
     print(f"CMake installed at: {cmake_dir}")
     print(f"vcpkg installed at: {vcpkg_dir}")
+    print(f"Ninja installed at: {ninja_dir}")
 
     print("\nIMPORTANT: You must restart your terminal for PATH changes to take effect.")
 
@@ -311,198 +432,106 @@ def get_cmake_dir():
 def get_vcpkg_dir():
     return Path.home() / ".kmake" / "vcpkg"
 
+def get_emsdk_dir():
+    return Path.home() / ".kmake" / "emsdk"
+
 def run_vcpkg_command(args):
     vcpkg = get_local_vcpkg()
-    process = subprocess.run(
+    process = subprocess.Popen(
         [vcpkg] + args,
-        check=False,
-        text=True,
-        capture_output=True
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True
     )
-    # print(process.stdout + process.stderr)
-    return process.returncode, process.stdout + process.stderr
 
-def install_vcpkg_package(name: str, project_name : str, linkage: str = "static-library"):
+    output = ""
+    for line in process.stdout:
+        print(line, end="")  # 👈 stream live to stdout
+        output += line       # 👈 also keep collecting it
+
+    process.wait()
+    return process.returncode, output
+
+
+def install_vcpkg_package(name: str, project_name : str, system : str):
     print(f"⏳ Installing package {name}")
-    system = platform.system().lower()
-    if not "header-only" in linkage:
-        linkage = "static" if linkage=="static-library" else "dynamic"
-        triplet = "x64-windows-static" if system=="windows" and linkage=="static" else "x64-windows" if system=="windows" else "x64-linux" if system=="linux" and linkage=="static" else "x64-linux-dynamic" if system=="linux" else "x64-osx" if system=="darwin" and linkage=="static" else "x64-osx-dynamic"
-        code, output = run_vcpkg_command(["install", f"{name}:{triplet}"])
-        lines = [line.strip().replace("main", project_name) for line in output.splitlines() if line.strip().startswith(("find_", "target_"))]
-        return "\n" + "\n".join(lines) + "\n\n"
-    else:
-        linkage = "static"
-        triplet = "x64-windows-static" if system=="windows" and linkage=="static" else "x64-windows" if system=="windows" else "x64-linux" if system=="linux" and linkage=="static" else "x64-linux-dynamic" if system=="linux" else "x64-osx" if system=="darwin" and linkage=="static" else "x64-osx-dynamic"
-        code, output = run_vcpkg_command(["install", f"{name}:{triplet}"])
-        lines = [line.strip().replace("main", project_name) for line in output.splitlines() if line.strip().startswith(("find_", "target_"))]
-        return "\n" + "\n".join(lines) + "\n\n"
+    triplet = system
+    code, output = run_vcpkg_command(["install", f"{name}:{triplet}"])
+    lines = [line.strip().replace("main", project_name) for line in output.splitlines() if line.strip().startswith(("find_", "target_"))]
+    return "\n" + "\n".join(lines) + "\n\n"
 
 
 def get_cmake_preset_file_string(
     compiler="clang",
+    platform="x64-windows",
     android_toolchain="C:/AndroidSDK/ndk/26.3.11579264/build/cmake/android.toolchain.cmake",
     android_platform="android-31"
 ):
-    sourceDir="{sourceDir}"
-    presetName="{presetName}"
-    vcpkg_toolchain= get_vcpkg_dir() / "scripts" / "buildsystems" / "vcpkg.cmake"
-    if compiler == "clang":
-        c_compiler = "clang"
-        cxx_compiler = "clang++"
-
-    if compiler == "gcc":
-        c_compiler = "gcc"
-        cxx_compiler = "g++"
+    vcpkg_toolchain = get_vcpkg_dir() / "scripts" / "buildsystems" / "vcpkg.cmake"
     
-    return f"""{{
-  "version": 3,
-  "configurePresets": [
-    {{
-      "name": "desktop-base",
-      "hidden": true,
+    compilers = {
+        "clang": ("clang", "clang++"),
+        "gcc": ("gcc", "g++")
+    }
+    c_compiler, cxx_compiler = compilers.get(compiler, ("clang", "clang++"))
+    
+    is_android = platform.startswith("arm") and "android" in platform
+    is_web = "wasm" in platform or "emscripten" in platform
+    
+    base_cache = {
+        "CMAKE_PRESET_NAME": "${presetName}",
+        "CMAKE_TOOLCHAIN_FILE": str(vcpkg_toolchain).replace("\\", "/")
+    }
+    
+    if is_android:
+        base_cache.update({
+            "CMAKE_SYSTEM_NAME": "Android",
+            "CMAKE_ANDROID_NDK": android_toolchain.split("/build/cmake")[0],
+            "CMAKE_ANDROID_STL_TYPE": "c++_shared",
+            "VCPKG_TARGET_TRIPLET": platform
+        })
+    elif is_web:
+        base_cache["VCPKG_TARGET_TRIPLET"] = platform
+    else:
+        base_cache.update({
+            "CMAKE_C_COMPILER": c_compiler,
+            "CMAKE_CXX_COMPILER": cxx_compiler
+        })
+    
+    arch = "x64" if "x64" in platform or "arm64" in platform else "x86"
+    strategy = "" if is_web or is_android else f''',
+      "architecture": {{
+        "value": "{arch}",
+        "strategy": "external"
+      }}'''
+    
+    build_types = ["Debug", "Release", "RelWithDebInfo", "MinSizeRel"]
+    presets = []
+    
+    for build_type in build_types:
+        preset_name = f"{platform}-{build_type.lower()}"
+        display_name = f"{platform} {build_type}"
+        
+        cache_vars = '",\n        "'.join([f'{k}": "{v}' for k, v in base_cache.items()])
+        
+        presets.append(f'''    {{
+      "name": "{preset_name}",
+      "displayName": "{display_name}",
       "generator": "Ninja",
       "binaryDir": "${{sourceDir}}/out/build/${{presetName}}",
-      "installDir": "${{sourceDir}}/out/install/${{presetName}}",
+      "installDir": "${{sourceDir}}/out/install/${{presetName}}"{strategy},
       "cacheVariables": {{
-        "CMAKE_C_COMPILER": "{c_compiler}",
-        "CMAKE_CXX_COMPILER": "{cxx_compiler}",
-        "CMAKE_PRESET_NAME": "${{presetName}}",
-        "CMAKE_TOOLCHAIN_FILE": "{str(vcpkg_toolchain).replace("\\", "/")}"
+        "{cache_vars}",
+        "CMAKE_BUILD_TYPE": "{build_type}"
       }}
-    }},
-    {{
-      "name": "x64-debug",
-      "displayName": "x64 Debug",
-      "inherits": "desktop-base",
-      "architecture": {{
-        "value": "x64",
-        "strategy": "external"
-      }},
-      "cacheVariables": {{
-        "CMAKE_BUILD_TYPE": "Debug"
-      }}
-    }},
-    {{
-      "name": "x64-release",
-      "displayName": "x64 Release",
-      "inherits": "x64-debug",
-      "cacheVariables": {{
-        "CMAKE_BUILD_TYPE": "Release"
-      }}
-    }},
-    {{
-      "name": "x64-release with debug",
-      "displayName": "x64 Release DD",
-      "inherits": "x64-release",
-      "cacheVariables": {{
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
-      }}
-    }},
-    {{
-      "name": "x64-MinSizeRel",
-      "displayName": "x64 Release MinSize",
-      "inherits": "x64-release",
-      "cacheVariables": {{
-        "CMAKE_BUILD_TYPE": "MinSizeRel"
-      }}
-    }},
-    {{
-      "name": "x86-debug",
-      "displayName": "x86 Debug",
-      "inherits": "desktop-base",
-      "architecture": {{
-        "value": "x86",
-        "strategy": "external"
-      }},
-      "cacheVariables": {{
-        "CMAKE_BUILD_TYPE": "Debug"
-      }}
-    }},
-    {{
-      "name": "x86-release",
-      "displayName": "x86 Release",
-      "inherits": "x86-debug",
-      "cacheVariables": {{
-        "CMAKE_BUILD_TYPE": "Release"
-      }}
-    }},
-    {{
-      "name": "default",
-      "hidden": true,
-      "binaryDir": "${{{{sourceDir}}}}/out/build/${{{{presetName}}}}",
-      "installDir": "${{{{sourceDir}}}}/out/install/${{{{presetName}}}}",
-      "generator": "Ninja"
-    }},
-    {{
-      "name": "android",
-      "hidden": true,
-      "displayName": "testandroid",
-      "inherits": "default",
-      "cacheVariables": {{
-        "CMAKE_SYSTEM_NAME": "Android",
-        "ANDROID_PLATFORM": "{android_platform}",
-        "ANDROID": true,
-        "CMAKE_TOOLCHAIN_FILE": "{android_toolchain}",
-        "CMAKE_PRESET_NAME": "${{{{presetName}}}}"
-      }}
-    }},
-    {{
-      "name": "android-x86",
-      "displayName": "Android x86",
-      "inherits": "android",
-      "cacheVariables": {{
-        "CMAKE_ANDROID_ARCH_ABI": "x86"
-      }}
-    }},
-    {{
-      "name": "android-x86_64 Debug",
-      "displayName": "Android x86_64 Debug",
-      "inherits": "android",
-      "cacheVariables": {{
-        "CMAKE_ANDROID_ARCH_ABI": "x86_64",
-        "CMAKE_BUILD_TYPE": "Debug"
-      }}
-    }},
-    {{
-      "name": "android-x86_64 Release",
-      "displayName": "Android x86_64 Release",
-      "inherits": "android",
-      "cacheVariables": {{
-        "CMAKE_ANDROID_ARCH_ABI": "x86_64",
-        "CMAKE_BUILD_TYPE": "Release"
-      }}
-    }},
-    {{
-      "name": "android-armeabi-v7a",
-      "displayName": "Android armeabi-v7a",
-      "inherits": "android",
-      "cacheVariables": {{
-        "CMAKE_ANDROID_ARCH_ABI": "armeabi-v7a"
-      }}
-    }},
-    {{
-      "name": "android-arm64-v8a",
-      "displayName": "Android arm64-v8a Debug",
-      "inherits": "android",
-      "cacheVariables": {{
-        "CMAKE_ANDROID_ARCH_ABI": "arm64-v8a",
-        "CMAKE_BUILD_TYPE": "Debug",
-        "ANDROID_ABI": "arm64-v8a"
-      }}
-    }},
-    {{
-      "name": "android-arm64-v8a Release",
-      "displayName": "Android arm64-v8a Release",
-      "inherits": "android",
-      "cacheVariables": {{
-        "CMAKE_ANDROID_ARCH_ABI": "arm64-v8a",
-        "CMAKE_BUILD_TYPE": "Release",
-        "ANDROID_ABI": "arm64-v8a"
-      }}
-    }}
+    }}''')
+    
+    return f'''{{
+  "version": 3,
+  "configurePresets": [
+{",\n".join(presets)}
   ]
-}}"""
+}}'''
 
 def clear_screen():
     os.system('cls' if platform.system() == 'Windows' else 'clear')
@@ -705,44 +734,45 @@ def get_build_file():
 
 def handle_run(arg):
     build_file = get_build_file()
-    Path("CMakePresets.json").write_text(get_cmake_preset_file_string(compiler=build_file["PROJECT_COMPILER"]))
+    Path("CMakePresets.json").write_text(get_cmake_preset_file_string(compiler=build_file["PROJECT_COMPILER"], platform=build_file["PROJECT_PLATFORM"]))
     project_names = []
     for project_name, project_detail in build_file["PROJECT_STRUCTURE"].items():
         project_names.append(project_name)
 
     for project_name, project_detail in build_file["PROJECT_STRUCTURE"].items():
+        is_main_project = (project_name == project_names[-1])
         project_path = os.path.join(os.getcwd(), "src", project_name) 
         os.makedirs(project_path, exist_ok=True)
         os.makedirs(os.path.join(project_path, "include", project_name), exist_ok=True)
         os.makedirs(os.path.join(project_path, "src"), exist_ok=True)
 
-        cmake_text = f""" 
-{CMAKE_MINIMUM_REQUIRED_STRING}
+        cmake_text = f"""{CMAKE_MINIMUM_REQUIRED_STRING}
 include("../../CMakeCommons.cmake")
 file(GLOB_RECURSE {project_name}_SRC CONFIGURE_DEPENDS  "${{CMAKE_CURRENT_SOURCE_DIR}}/*.cpp" "${{CMAKE_CURRENT_SOURCE_DIR}}/*.hpp" "${{CMAKE_CURRENT_SOURCE_DIR}}/*.c" "${{CMAKE_CURRENT_SOURCE_DIR}}/*.h")
 """
         if project_detail["type"] == "static-library":
             cmake_text += f"""
 add_library({project_name} STATIC ${{{project_name}_SRC}})
-PrecompileStdHeaders({project_name})
 """
         elif project_detail["type"] == "dynamic-library":
             cmake_text += f"""
 add_library({project_name} DYNAMIC ${{{project_name}_SRC}})
-PrecompileStdHeaders({project_name})
 """
         elif project_detail["type"] == "binary":
             cmake_text += f"""
 add_executable({project_name}  ${{{project_name}_SRC}})
-PrecompileStdHeaders({project_name})
 """
         else:
             raise("You have to specify the type - either binary, static-library or dynamic-library")
 
+        if build_file["PROJECT_LANGUAGE"] == "C++":
+            cmake_text+=f"""
+PrecompileStdHeaders({project_name})
+"""
         try:
             for dep, dep_detail in project_detail["deps"].items():
                 if dep not in project_names:
-                    cmake_text += install_vcpkg_package(dep, project_name, dep_detail["type"])
+                    cmake_text += install_vcpkg_package(dep, project_name, build_file["PROJECT_PLATFORM"])
         except Exception as e:
             pass
 
@@ -761,7 +791,9 @@ PrecompileStdHeaders({project_name})
         except Exception as e:
             pass
 
-        cmake_text += f"""add_custom_command(
+
+        if is_main_project:
+            cmake_text += f"""add_custom_command(
     TARGET {project_name} POST_BUILD
     COMMAND ${{CMAKE_COMMAND}} -E copy
             "${{CMAKE_SOURCE_DIR}}/out/build/${{CMAKE_PRESET_NAME}}/compile_commands.json"
@@ -770,12 +802,11 @@ PrecompileStdHeaders({project_name})
 """
         Path(os.path.join(project_path, "CMakeLists.txt")).write_text(cmake_text)
 
-        is_main_project = (project_name == project_names[-1])
         if is_main_project:
             cmake_text = f"""
 {CMAKE_MINIMUM_REQUIRED_STRING}
-include("CMakeCommons.cmake")
 project({project_name})
+include("CMakeCommons.cmake")
 """
             if build_file["PROJECT_LANGUAGE"] == "C++":
                 cmake_text += f"""set(CMAKE_CXX_STANDARD {build_file["PROJECT_LANGUAGE_STANDARD"]})
@@ -786,10 +817,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories("src/{project_name}/include")
 add_subdirectory("src/{project_name}")
 """
-
+            cmake_text += f""""""
             Path("CMakeCommons.cmake").write_text(get_cmake_default_fill_string())
             Path("CMakeLists.txt").write_text(cmake_text)
-
 
 def handle_init(args):
     clear_screen()
@@ -812,6 +842,7 @@ PROJECT_NAME = "{project_name}"
 PROJECT_LANGUAGE = "{project_language}"
 PROJECT_LANGUAGE_STANDARD = "{project_language_standard}"
 PROJECT_COMPILER = "{project_compiler}"
+PROJECT_PLATFORM = "x64-windows" # basically a vcpkg triplet. Can be any one from vcpkg's supported triplets like x64-windows, x64-windows-static, x64-linux (untested), x64-linux-dynamic (untested), x64-osx(untested), arm64-android (will be supported later), wasm32-emscripten, etc.
 PROJECT_STRUCTURE = {{ }}
  """)
 
@@ -884,7 +915,6 @@ def main():
     unit_parser.add_argument("project_name", help="Name of the project")
     unit_parser.add_argument("unit_name", help="Name of the unit to add")
     unit_parser.set_defaults(func=handle_unit)
-
     args = parser.parse_args()
     args.func(args)
 

@@ -1,26 +1,26 @@
 [
 {
-  "directory": "D:/dev/kmake/out/build/x64-debug",
-  "command": "C:\\PROGRA~2\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\CLANG_~1.EXE -DLUA_BUILD_AS_DLL -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED -ID:/dev/kmake/src/kmakelib/include -isystem C:/Users/sansk/.kmake/vcpkg/installed/x64-windows/include -O0 -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -g -Xclang -gcodeview -Xclang -emit-pch -Xclang -include -Xclang D:/dev/kmake/out/build/x64-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx -x c++-header -o src\\kmakelib\\CMakeFiles\\kmakelib.dir\\cmake_pch.hxx.pch -c D:\\dev\\kmake\\out\\build\\x64-debug\\src\\kmakelib\\CMakeFiles\\kmakelib.dir\\cmake_pch.hxx.cxx",
-  "file": "D:/dev/kmake/out/build/x64-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx.cxx",
-  "output": "D:/dev/kmake/out/build/x64-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx.pch"
+  "directory": "D:/dev/kmake/out/build/x64-windows-debug",
+  "command": "C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\CLANG_~1.EXE -DLUA_BUILD_AS_DLL -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED -ID:/dev/kmake/src/kmakelib/include -isystem C:/Users/sansk/.kmake/vcpkg/installed/x64-windows/include -O0 -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -g -Xclang -gcodeview -Xclang -emit-pch -Xclang -include -Xclang D:/dev/kmake/out/build/x64-windows-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx -x c++-header -o src\\kmakelib\\CMakeFiles\\kmakelib.dir\\cmake_pch.hxx.pch -c D:\\dev\\kmake\\out\\build\\x64-windows-debug\\src\\kmakelib\\CMakeFiles\\kmakelib.dir\\cmake_pch.hxx.cxx",
+  "file": "D:/dev/kmake/out/build/x64-windows-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx.cxx",
+  "output": "D:/dev/kmake/out/build/x64-windows-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx.pch"
 },
 {
-  "directory": "D:/dev/kmake/out/build/x64-debug",
-  "command": "C:\\PROGRA~2\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\CLANG_~1.EXE -DLUA_BUILD_AS_DLL -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED -ID:/dev/kmake/src/kmakelib/include -isystem C:/Users/sansk/.kmake/vcpkg/installed/x64-windows/include -O0 -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -g -Xclang -gcodeview -Xclang -include-pch -Xclang D:/dev/kmake/out/build/x64-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx.pch -Xclang -include -Xclang D:/dev/kmake/out/build/x64-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx @src\\kmakelib\\CMakeFiles\\kmakelib.dir\\src\\kmakelib.cpp.obj.modmap -o src\\kmakelib\\CMakeFiles\\kmakelib.dir\\src\\kmakelib.cpp.obj -c D:\\dev\\kmake\\src\\kmakelib\\src\\kmakelib.cpp",
+  "directory": "D:/dev/kmake/out/build/x64-windows-debug",
+  "command": "C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\CLANG_~1.EXE -DLUA_BUILD_AS_DLL -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED -ID:/dev/kmake/src/kmakelib/include -isystem C:/Users/sansk/.kmake/vcpkg/installed/x64-windows/include -O0 -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -g -Xclang -gcodeview -Xclang -include-pch -Xclang D:/dev/kmake/out/build/x64-windows-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx.pch -Xclang -include -Xclang D:/dev/kmake/out/build/x64-windows-debug/src/kmakelib/CMakeFiles/kmakelib.dir/cmake_pch.hxx @src\\kmakelib\\CMakeFiles\\kmakelib.dir\\src\\kmakelib.cpp.obj.modmap -o src\\kmakelib\\CMakeFiles\\kmakelib.dir\\src\\kmakelib.cpp.obj -c D:\\dev\\kmake\\src\\kmakelib\\src\\kmakelib.cpp",
   "file": "D:/dev/kmake/src/kmakelib/src/kmakelib.cpp",
-  "output": "D:/dev/kmake/out/build/x64-debug/src/kmakelib/CMakeFiles/kmakelib.dir/src/kmakelib.cpp.obj"
+  "output": "D:/dev/kmake/out/build/x64-windows-debug/src/kmakelib/CMakeFiles/kmakelib.dir/src/kmakelib.cpp.obj"
 },
 {
-  "directory": "D:/dev/kmake/out/build/x64-debug",
-  "command": "C:\\PROGRA~2\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\CLANG_~1.EXE -DLUA_BUILD_AS_DLL -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED -ID:/dev/kmake/src/kmakelib/include -ID:/dev/kmake/src/kmake/include -isystem C:/Users/sansk/.kmake/vcpkg/installed/x64-windows/include -O0 -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -g -Xclang -gcodeview -Xclang -emit-pch -Xclang -include -Xclang D:/dev/kmake/out/build/x64-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx -x c++-header -o src\\kmake\\CMakeFiles\\kmake.dir\\cmake_pch.hxx.pch -c D:\\dev\\kmake\\out\\build\\x64-debug\\src\\kmake\\CMakeFiles\\kmake.dir\\cmake_pch.hxx.cxx",
-  "file": "D:/dev/kmake/out/build/x64-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx.cxx",
-  "output": "D:/dev/kmake/out/build/x64-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx.pch"
+  "directory": "D:/dev/kmake/out/build/x64-windows-debug",
+  "command": "C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\CLANG_~1.EXE -DLUA_BUILD_AS_DLL -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED -ID:/dev/kmake/src/kmakelib/include -ID:/dev/kmake/src/kmake/include -isystem C:/Users/sansk/.kmake/vcpkg/installed/x64-windows/include -O0 -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -g -Xclang -gcodeview -Xclang -emit-pch -Xclang -include -Xclang D:/dev/kmake/out/build/x64-windows-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx -x c++-header -o src\\kmake\\CMakeFiles\\kmake.dir\\cmake_pch.hxx.pch -c D:\\dev\\kmake\\out\\build\\x64-windows-debug\\src\\kmake\\CMakeFiles\\kmake.dir\\cmake_pch.hxx.cxx",
+  "file": "D:/dev/kmake/out/build/x64-windows-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx.cxx",
+  "output": "D:/dev/kmake/out/build/x64-windows-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx.pch"
 },
 {
-  "directory": "D:/dev/kmake/out/build/x64-debug",
-  "command": "C:\\PROGRA~2\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\CLANG_~1.EXE -DLUA_BUILD_AS_DLL -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED -ID:/dev/kmake/src/kmakelib/include -ID:/dev/kmake/src/kmake/include -isystem C:/Users/sansk/.kmake/vcpkg/installed/x64-windows/include -O0 -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -g -Xclang -gcodeview -Xclang -include-pch -Xclang D:/dev/kmake/out/build/x64-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx.pch -Xclang -include -Xclang D:/dev/kmake/out/build/x64-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx @src\\kmake\\CMakeFiles\\kmake.dir\\src\\kmake.cpp.obj.modmap -o src\\kmake\\CMakeFiles\\kmake.dir\\src\\kmake.cpp.obj -c D:\\dev\\kmake\\src\\kmake\\src\\kmake.cpp",
+  "directory": "D:/dev/kmake/out/build/x64-windows-debug",
+  "command": "C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\Llvm\\x64\\bin\\CLANG_~1.EXE -DLUA_BUILD_AS_DLL -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED -ID:/dev/kmake/src/kmakelib/include -ID:/dev/kmake/src/kmake/include -isystem C:/Users/sansk/.kmake/vcpkg/installed/x64-windows/include -O0 -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -g -Xclang -gcodeview -Xclang -include-pch -Xclang D:/dev/kmake/out/build/x64-windows-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx.pch -Xclang -include -Xclang D:/dev/kmake/out/build/x64-windows-debug/src/kmake/CMakeFiles/kmake.dir/cmake_pch.hxx @src\\kmake\\CMakeFiles\\kmake.dir\\src\\kmake.cpp.obj.modmap -o src\\kmake\\CMakeFiles\\kmake.dir\\src\\kmake.cpp.obj -c D:\\dev\\kmake\\src\\kmake\\src\\kmake.cpp",
   "file": "D:/dev/kmake/src/kmake/src/kmake.cpp",
-  "output": "D:/dev/kmake/out/build/x64-debug/src/kmake/CMakeFiles/kmake.dir/src/kmake.cpp.obj"
+  "output": "D:/dev/kmake/out/build/x64-windows-debug/src/kmake/CMakeFiles/kmake.dir/src/kmake.cpp.obj"
 }
 ]

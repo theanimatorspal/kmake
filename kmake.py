@@ -13,6 +13,13 @@ import argparse
 import shutil
 from pathlib import Path
 
+"""
+
+# ALL THE DATABASE and CONSTANT STRINGS should be here
+
+"""
+
+
 CMAKE_MINIMUM_REQUIRED_STRING = "cmake_minimum_required(VERSION 3.28)"
 
 DATABASE = {
@@ -26,6 +33,12 @@ DATABASE = {
         "harfbuzz",
     ]
 }
+
+"""
+
+# Commands that produce string, executes commands etc should be here
+
+"""
 
 def _cmake_version() -> str | None:
     try:
@@ -85,9 +98,9 @@ def copy(src, dst):
     
     if src_path.is_file():
         dst_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src_path, dst_path)  # copy file with metadata
+        shutil.copy2(src_path, dst_path)
     elif src_path.is_dir():
-        shutil.copytree(src_path, dst_path, dirs_exist_ok=True)  # copy folder
+        shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
     else:
         raise ValueError(f"Unsupported source type: {src}")
 
@@ -260,18 +273,28 @@ def get_cmake_dir():
 def get_vcpkg_dir():
     return Path.home() / ".kmake" / "vcpkg"
 
-
 def run_vcpkg_command(args):
     vcpkg = shutil.which("vcpkg")
-    install_vcpkg(Path.home() / ".kmake")
+    if not vcpkg:
+        install_vcpkg(Path.home() / ".kmake") 
+
     process = subprocess.run(
-        ["vcpkg"] + args,
+        [vcpkg] + args,
         check=False,
         text=True,
-        stdout=sys.stdout,
-        stderr=sys.stderr
+        capture_output=True
     )
-    return process.returncode
+    print(process.stdout + process.stderr)
+    return process.returncode, process.stdout + process.stderr
+
+def install_vcpkg_package(name: str, project_name : str, linkage: str = "static-library"):
+    print(f"⏳ Installing {name}")
+    system = platform.system().lower()
+    linkage = "static" if linkage=="static-library" else "dynamic"
+    triplet = "x64-windows-static" if system=="windows" and linkage=="static" else "x64-windows" if system=="windows" else "x64-linux" if system=="linux" and linkage=="static" else "x64-linux-dynamic" if system=="linux" else "x64-osx" if system=="darwin" and linkage=="static" else "x64-osx-dynamic"
+    code, output = run_vcpkg_command(["install", f"{name}:{triplet}"])
+    lines = [line.strip().replace("main", project_name) for line in output.splitlines() if line.strip().startswith(("find_", "target_"))]
+    return "\n" + "\n".join(lines) + "\n\n"
 
 def get_cmake_preset_file_string(
     compiler="clang",
@@ -660,7 +683,7 @@ file(GLOB_RECURSE {project_name}_SRC CONFIGURE_DEPENDS  "${{CMAKE_CURRENT_SOURCE
 add_library({project_name} STATIC ${{{project_name}_SRC}})
 PrecompileStdHeaders({project_name})
 """
-        elif project_detail["type"] == "dynamic":
+        elif project_detail["type"] == "dynamic-library":
             cmake_text += f"""
 add_library({project_name} DYNAMIC ${{{project_name}_SRC}})
 PrecompileStdHeaders({project_name})
@@ -670,12 +693,28 @@ PrecompileStdHeaders({project_name})
 add_executable({project_name}  ${{{project_name}_SRC}})
 PrecompileStdHeaders({project_name})
 """
+        else:
+            raise("You have to specify the type - either binary, static-library or dynamic-library")
+
+        try:
+            for dep, dep_detail in project_detail["deps"].items():
+                if dep not in project_names:
+                    cmake_text += install_vcpkg_package(dep, project_name, dep_detail["type"])
+        except Exception as e:
+            pass
+
         try:
             if "deps" in project_detail:
-                cmake_text += "target_link_libraries("
+                first = True
                 for dep in project_detail["deps"]:
-                    cmake_text += f" {dep}"
-                cmake_text += ")\n"
+                    if dep in project_names:
+                        if first:
+                            cmake_text += "target_link_libraries("
+                            first = False
+                        cmake_text += f" {dep}"
+                if not first:
+                    cmake_text += ")\n"
+
         except Exception as e:
             pass
 

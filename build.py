@@ -6,7 +6,15 @@ PROJECT_LANGUAGE_STANDARD = "20"
 PROJECT_COMPILER = "clang"
 PROJECT_STRUCTURE = {
     "kmakelib" : {
-        "type" : "static-library"
+        "type" : "static-library",
+        "deps" : {
+            "lua" : {
+                "type" : "static-library"
+            },
+            "sol2" : {
+                "type" : "static-library"
+            }
+        }
     },
     "kmake" : {
         "type" : "binary",

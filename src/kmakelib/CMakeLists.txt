@@ -10,10 +10,6 @@ find_package(Lua REQUIRED)
 target_include_directories(kmakelib PRIVATE ${LUA_INCLUDE_DIR})
 target_link_libraries(kmakelib PRIVATE ${LUA_LIBRARIES})
 
-
-find_path(SOL2_INCLUDE_DIRS "sol/abort.hpp" HINTS "$ENV{VCPKG_ROOT}/installed/x64-windows-static/include")
-target_include_directories(kmakelib PRIVATE ${SOL2_INCLUDE_DIRS})
-
 add_custom_command(
     TARGET kmakelib POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy

@@ -36,14 +36,15 @@ DATABASE = {
 
 """
 
-# Commands that produce string, executes commands etc should be here
+# UTILITY COMMANDS
 
 """
 
 def _cmake_version() -> str | None:
     try:
+        cmake = get_local_cmake()
         result = subprocess.run(
-            ["cmake", "--version"],
+            [cmake, "--version"],
             capture_output=True,
             text=True,
             check=True
@@ -103,6 +104,35 @@ def copy(src, dst):
         shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
     else:
         raise ValueError(f"Unsupported source type: {src}")
+
+def get_local_vcpkg() -> str:
+    vcpkg = shutil.which("vcpkg")
+    if not vcpkg:
+        base_dir = Path.home() / ".kmake"
+        vcpkg_dir = base_dir / "vcpkg"
+        vcpkg_exe = "vcpkg.exe" if platform.system() == "Windows" else "vcpkg"
+        local_vcpkg = vcpkg_dir / vcpkg_exe
+        
+        if local_vcpkg.exists():
+            return str(local_vcpkg)
+        else:
+            install_vcpkg(base_dir, add_to_path=False)
+            return str(local_vcpkg)
+    return vcpkg
+
+def get_local_cmake() -> str:
+    cmake = shutil.which("cmake")
+    if not cmake:
+        base_dir = Path.home() / ".kmake"
+        cmake_dir = base_dir / "cmake" / "bin"
+        cmake_exe = "cmake.exe" if platform.system() == "Windows" else "cmake"
+        local_cmake = cmake_dir / cmake_exe
+        
+        if local_cmake.exists():
+            return str(local_cmake)
+        else:
+            raise RuntimeError("CMake not found. Run 'kmake self-install' first.")
+    return cmake
 
 def add_to_path(path_to_add: Path):
     path_str = str(path_to_add)
@@ -189,7 +219,7 @@ def get_latest_cmake_url() -> str:
         print(f"Error fetching latest CMake URL: {e}", file=sys.stderr)
         sys.exit(1)
 
-def install_cmake(base_dir: Path) -> Path:
+def install_cmake(base_dir: Path, should_add_to_path : bool) -> Path:
     cmake_dir = base_dir / "cmake"
     if cmake_dir.exists():
         print("✅ CMake is already installed.")
@@ -213,10 +243,12 @@ def install_cmake(base_dir: Path) -> Path:
     shutil.move(str(source_dir), str(cmake_dir))
     shutil.rmtree(temp_extract_dir)
     
-    add_to_path(cmake_dir / "bin")
+    if should_add_to_path:
+        add_to_path(cmake_dir / "bin")
+
     return cmake_dir
 
-def install_vcpkg(base_dir: Path) -> Path:
+def install_vcpkg(base_dir: Path, should_add_to_path : bool) -> Path:
     vcpkg_dir = base_dir / "vcpkg"
     if vcpkg_dir.exists():
         print("✅ vcpkg is already installed.")
@@ -238,12 +270,13 @@ def install_vcpkg(base_dir: Path) -> Path:
         check=True
     )
     
-    add_to_path(vcpkg_dir)
+    if should_add_to_path:
+        add_to_path(vcpkg_dir)
+
     return vcpkg_dir
 
 def install_self():
     src_dir = Path(__file__).resolve().parent
-
     if platform.system() == "Windows":
         target_dir = src_dir
     else:
@@ -252,15 +285,20 @@ def install_self():
     add_to_path(target_dir)
     print(f"✅ Added {target_dir} to PATH")
 
-def handle_install(args):
+def handle_self_install(args):
     print("🚀 Initializing setup...")
     base_dir = Path.home() / ".kmake"
     base_dir.mkdir(exist_ok=True)
     
     install_self()
-    cmake_dir = install_cmake(base_dir)
-    vcpkg_dir = install_vcpkg(base_dir)
-    
+    add_cmake_to_path = get_yes_no("Add CMake to PATH?", default=True)
+    add_vcpkg_to_path = get_yes_no("Add vcpkg to PATH?", default=True)    
+
+    if add_kmake_to_path:
+        add_kmake_to_path = get_yes_no("Add kmake to PATH?", default=True)
+    cmake_dir = install_cmake(base_dir, add_cmake_to_path)
+    vcpkg_dir = install_vcpkg(base_dir, add_vcpkg_to_path)
+
     print("\n🎉 Installation Complete!")
     print(f"CMake installed at: {cmake_dir}")
     print(f"vcpkg installed at: {vcpkg_dir}")
@@ -274,27 +312,32 @@ def get_vcpkg_dir():
     return Path.home() / ".kmake" / "vcpkg"
 
 def run_vcpkg_command(args):
-    vcpkg = shutil.which("vcpkg")
-    if not vcpkg:
-        install_vcpkg(Path.home() / ".kmake") 
-
+    vcpkg = get_local_vcpkg()
     process = subprocess.run(
         [vcpkg] + args,
         check=False,
         text=True,
         capture_output=True
     )
-    print(process.stdout + process.stderr)
+    # print(process.stdout + process.stderr)
     return process.returncode, process.stdout + process.stderr
 
 def install_vcpkg_package(name: str, project_name : str, linkage: str = "static-library"):
-    print(f"⏳ Installing {name}")
+    print(f"⏳ Installing package {name}")
     system = platform.system().lower()
-    linkage = "static" if linkage=="static-library" else "dynamic"
-    triplet = "x64-windows-static" if system=="windows" and linkage=="static" else "x64-windows" if system=="windows" else "x64-linux" if system=="linux" and linkage=="static" else "x64-linux-dynamic" if system=="linux" else "x64-osx" if system=="darwin" and linkage=="static" else "x64-osx-dynamic"
-    code, output = run_vcpkg_command(["install", f"{name}:{triplet}"])
-    lines = [line.strip().replace("main", project_name) for line in output.splitlines() if line.strip().startswith(("find_", "target_"))]
-    return "\n" + "\n".join(lines) + "\n\n"
+    if not "header-only" in linkage:
+        linkage = "static" if linkage=="static-library" else "dynamic"
+        triplet = "x64-windows-static" if system=="windows" and linkage=="static" else "x64-windows" if system=="windows" else "x64-linux" if system=="linux" and linkage=="static" else "x64-linux-dynamic" if system=="linux" else "x64-osx" if system=="darwin" and linkage=="static" else "x64-osx-dynamic"
+        code, output = run_vcpkg_command(["install", f"{name}:{triplet}"])
+        lines = [line.strip().replace("main", project_name) for line in output.splitlines() if line.strip().startswith(("find_", "target_"))]
+        return "\n" + "\n".join(lines) + "\n\n"
+    else:
+        linkage = "static"
+        triplet = "x64-windows-static" if system=="windows" and linkage=="static" else "x64-windows" if system=="windows" else "x64-linux" if system=="linux" and linkage=="static" else "x64-linux-dynamic" if system=="linux" else "x64-osx" if system=="darwin" and linkage=="static" else "x64-osx-dynamic"
+        code, output = run_vcpkg_command(["install", f"{name}:{triplet}"])
+        lines = [line.strip().replace("main", project_name) for line in output.splitlines() if line.strip().startswith(("find_", "target_"))]
+        return "\n" + "\n".join(lines) + "\n\n"
+
 
 def get_cmake_preset_file_string(
     compiler="clang",
@@ -660,7 +703,7 @@ def get_build_file():
     exec(code, build_file)
     return build_file
 
-def run_build_py(arg):
+def handle_run(arg):
     build_file = get_build_file()
     Path("CMakePresets.json").write_text(get_cmake_preset_file_string(compiler=build_file["PROJECT_COMPILER"]))
     project_names = []
@@ -706,7 +749,7 @@ PrecompileStdHeaders({project_name})
         try:
             if "deps" in project_detail:
                 first = True
-                for dep in project_detail["deps"]:
+                for dep in project_detail["deps"].items():
                     if dep in project_names:
                         if first:
                             cmake_text += "target_link_libraries("
@@ -733,6 +776,10 @@ PrecompileStdHeaders({project_name})
 {CMAKE_MINIMUM_REQUIRED_STRING}
 include("CMakeCommons.cmake")
 project({project_name})
+"""
+            if build_file["PROJECT_LANGUAGE"] == "C++":
+                cmake_text += f"""set(CMAKE_CXX_STANDARD {build_file["PROJECT_LANGUAGE_STANDARD"]})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 """
             for project_name in project_names:
                 cmake_text += f"""
@@ -815,7 +862,7 @@ def main():
         'self-install', 
         help='Install kmake, the latest CMake, and vcpkg to the user directory.'
     )
-    install_parser.set_defaults(func=handle_install)
+    install_parser.set_defaults(func=handle_self_install)
 
     init_parser = subparsers.add_parser(
         'init', 
@@ -828,7 +875,7 @@ def main():
         'run',
         help='Run build.py'
     )
-    run_parser.set_defaults(func=run_build_py)
+    run_parser.set_defaults(func=handle_run)
 
     unit_parser = subparsers.add_parser(
         'unit',

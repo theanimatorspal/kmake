@@ -14,19 +14,7 @@
 
 ## 🎯 What is kmake?
 
-**kmake** is a lightweight Python-based tool that eliminates the pain of setting up C/C++ projects. It automatically installs CMake and vcpkg, manages dependencies, generates build configurations, and lets you focus on writing code instead of fighting build systems.
-
-### ✨ Key Features
-
-- 🚀 **One-Command Setup** – Install CMake, vcpkg, and configure everything in seconds
-- 📦 **Automatic Dependency Management** – Just declare what you need, kmake handles vcpkg
-- 🎨 **Project Templates** – Initialize new projects with sensible defaults instantly
-- 🔧 **Smart Build Configuration** – Pre-configured CMake presets
-- 🧩 **Module System** – Create translation units with proper headers/sources automatically
-- 🌐 **Cross-Platform** – Works seamlessly on Windows, Linux, and macOS
-- 🔒 **Isolated Installation** – Keeps your system clean, doesn't mess with existing tools
-
----
+**kmake** is a lightweight single file Python-based tool that eliminates the pain of setting up C/C++ projects. It automatically installs CMake, vcpkg, cmake, manages dependencies, generates build configurations, and lets you focus on writing code instead of fighting build systems.
 
 ## 🚀 Quick Start
 
@@ -45,8 +33,11 @@ You'll be asked:
 - ✅ Add kmake to PATH? (default: yes)
 - ✅ Add CMake to PATH? (default: yes)
 - ✅ Add vcpkg to PATH? (default: yes)
+- ✅ Add Ninja to PATH? (default: yes)
 
 > 💡 **Pro Tip:** Say "no" to keep your existing installations untouched. kmake will use its own isolated tools in `~/.kmake/`
+
+> 💡 **Pro Tip2:** If you don't want any hassle just press enter in every prompt
 
 **Important:** Restart your terminal after installation!
 
@@ -59,7 +50,7 @@ You'll be asked:
 kmake init
 
 # Or initialize in the current directory
-kmake init here
+kmake init .
 ```
 
 You'll be prompted for:
@@ -77,18 +68,20 @@ This creates a `build.py` configuration file.
 Edit the generated `build.py`:
 
 ```python
+
 PROJECT_NAME = "kmake"
 PROJECT_TYPE = "binary"
 PROJECT_LANGUAGE = "C++"
 PROJECT_LANGUAGE_STANDARD = "20"
 PROJECT_COMPILER = "clang"
+PROJECT_PLATFORM = "x64-windows" # basically a vcpkg triplet. Can be any one from vcpkg's supported triplets like x64-windows, x64-windows-static, x64-linux (untested), x64-linux-dynamic (untested), x64-osx(untested), arm64-android (will be supported later), wasm32-emscripten (untested), etc.
 PROJECT_STRUCTURE = {
     "kmakelib" : {
         "type" : "static-library",
         "deps" : {
             "lua" : {
-                "type" : "static-library"
-            }
+                "version" : "5.4.7" 
+            },
         }
     },
     "kmake" : {
@@ -96,20 +89,17 @@ PROJECT_STRUCTURE = {
         "deps" : {
             "kmakelib" : {},
             "lua" : {
-                "type" : "static-library"
-            },
+                "version" : "5.4.7"
+            },        
             "sol2" : {
-                "type" : "header-only-library"
+                "version" : "3.5.0"
             }
         }
     }
 }
 ```
 
-### Dependency Types
-- `"static-library"` – Link statically
-- `"dynamic-library"` – Link dynamically  
-- `"header-only"` – Header-only libraries
+If version is not given, like "lua" : {} then latest package is going to be installed. Remember that you can only compile one project at a time (so if one of your programs uses old lua and another uses new lua then you cannot compile those in parallel, you have to compile one)
 
 ---
 
@@ -129,18 +119,20 @@ This will:
 
 ### Step 5: Build Your Project
 
-```bash
-# Configure
-cmake --preset x64-debug
+If you use VSCode, then install these extensions:
 
-# Build
-cmake --build out/build/x64-debug
+* C/C++ Extension Pack From Microsoft
+* Clangd
 
-# Your executable will be at:
-# out/build/x64-debug/src/game/game(.exe on Windows)
-```
+And Make sure to add this in your settings.json file (If you install Clangd, VSCode itself will prompt you for this).
+` "C_Cpp.intelliSenseEngine": "disabled" `
 
----
+Then run `kmake run` to generate appropriate files ready for build (will also install all packages specified in your build.py).
+
+After that, just press "Build ⚙️" button you see at VSCode bottom left. It will build the package for you.
+
+However if you want to build and run yourself, you can do `kmake build run <arguments to your binary>` this will compile and run the binary with the command line arguments you give to it, using the first preset in the generated CMakePresets.json (generally a debug build). If you want release then you can run `kmake build ask run <arguments to your binary>` then it will prompt which preset to build and run and from there you can select the appropriate option you'd like.
+
 
 ## 📖 Usage Guide
 
@@ -165,125 +157,6 @@ With proper include guards and namespace boilerplate already set up!
 
 ---
 
-### Using Dependency Bundles
-
-kmake includes pre-configured dependency bundles for common use cases:
-
-```python
-PROJECT_STRUCTURE = {
-    "myapp": {
-        "type": "binary",
-        "deps": {
-            "vulkan-all": {"type": "static-library"}  # Installs vulkan, SDL2, SPIRV, etc.
-        }
-    }
-}
-```
-
-**Available Bundles:**
-- `vulkan-all` – Vulkan + SDL2 + SPIRV-Tools + glslang + spirv-cross + freetype + harfbuzz
-
-> 🔧 Want to add more bundles? Edit the `DATABASE` dictionary in `kmake.py`
-
----
-
-### CMake Presets Included
-
-kmake generates these build configurations automatically:
-
-#### Desktop Builds
-- `x64-debug` – 64-bit Debug
-- `x64-release` – 64-bit Release
-- `x64-release with debug` – Release with debug symbols
-- `x64-MinSizeRel` – Minimum size release
-- `x86-debug` / `x86-release` – 32-bit builds
-
-#### Android Builds
-- `android-arm64-v8a` – ARM 64-bit (Debug/Release)
-- `android-x86_64` – x86 64-bit (Debug/Release)
-- `android-armeabi-v7a` – ARM 32-bit
-- `android-x86` – x86 32-bit
-
-**To use Android presets**, edit the toolchain path in `build.py` if needed.
-
----
-
-## 🎓 Complete Example
-
-Here's a complete workflow for a Vulkan-based game:
-
-```bash
-# 1. Initialize project
-kmake init
-# Enter: "my_game", "C++", "clang", "20"
-
-# 2. Edit build.py
-cat > build.py << 'EOF'
-PROJECT_NAME = "my_game"
-PROJECT_LANGUAGE = "C++"
-PROJECT_LANGUAGE_STANDARD = "20"
-PROJECT_COMPILER = "clang"
-
-PROJECT_STRUCTURE = {
-    "renderer": {
-        "type": "static-library",
-        "deps": {
-            "vulkan": {"type": "static-library"},
-            "sdl2": {"type": "dynamic-library"},
-            "glm": {"type": "header-only"}
-        }
-    },
-    "game": {
-        "type": "binary",
-        "deps": {
-            "renderer": {"type": "static-library"}
-        }
-    }
-}
-EOF
-
-# 3. Generate build system
-kmake run
-
-# 4. Add game logic files
-kmake unit game main_loop
-kmake unit renderer vulkan_context
-
-# 5. Build
-cmake --preset x64-debug
-cmake --build out/build/x64-debug
-
-# 6. Run
-./out/build/x64-debug/src/game/game
-```
-
----
-
-## 🛠️ Advanced Configuration
-
-### Custom Precompiled Headers
-
-kmake automatically sets up PCH for all standard library headers. To add your own:
-
-Edit `CMakeCommons.cmake` after running `kmake run`:
-
-```cmake
-function(PrecompileStdHeaders TARGET_NAME)
-    target_precompile_headers(${TARGET_NAME} PRIVATE
-        # ... existing headers ...
-        
-        # Add your custom headers
-        <vulkan/vulkan.hpp>
-        <glm/glm.hpp>
-        <sol/sol.hpp>
-    )
-endfunction()
-```
-
-### Using System-Installed Tools
-
-If you already have CMake or vcpkg installed, kmake will use them automatically if they're in your PATH. Otherwise, it uses its isolated installation in `~/.kmake/`.
-
 ### Clean Reinstall
 
 ```bash
@@ -301,32 +174,6 @@ python kmake.py self-install
 - **Python 3.8+**
 - **Git** (for vcpkg installation)
 - **A C/C++ compiler** (clang, gcc, or MSVC)
-- **Ninja** (recommended, or use your platform's default generator)
-
----
-
-## 🐛 Troubleshooting
-
-### "vcpkg not found" after installation
-**Solution:** Restart your terminal or run:
-```bash
-source ~/.bashrc  # or ~/.zshrc on macOS
-```
-
-### "CMake not found" when building
-**Solution:** Make sure you restarted your terminal after `self-install`, or use the full path:
-```bash
-~/.kmake/cmake/bin/cmake --preset x64-debug
-```
-
-### Dependencies fail to install
-**Solution:** Check your internet connection. vcpkg downloads packages from GitHub. You can also manually retry:
-```bash
-~/.kmake/vcpkg/vcpkg install <package-name>
-```
-
-### "Preset not found" error
-**Solution:** Make sure you ran `kmake run` before configuring with CMake.
 
 ---
 
@@ -341,25 +188,15 @@ Contributions are welcome! Here's how you can help:
 
 **Roadmap Ideas:**
 - Template system (`kmake init --template sdl2-game`)
-- Direct Integration with github for kmake based projects
+- Direct Integration with github for kmake based projects (similar to go's)
 - Dependency version locking
-- `kmake doctor` command for diagnostics
-- More dependency bundles
+- Automatic installation of various compilers
 
 ---
 
 ## 📜 License
 
 MIT License – See `LICENSE` file for details
-
----
-
-## 🙏 Acknowledgments
-
-Built on top of:
-- [CMake](https://cmake.org/) – Cross-platform build system
-- [vcpkg](https://vcpkg.io/) – C/C++ package manager by Microsoft
-- [Ninja](https://ninja-build.org/) – Fast build system
 
 ---
 

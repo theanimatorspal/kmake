@@ -8,9 +8,9 @@ import json
 import zipfile
 import tarfile
 import shutil
-import tempfile
 import argparse
 import shutil
+import tempfile
 from pathlib import Path
 
 """
@@ -374,7 +374,7 @@ def install_vcpkg(base_dir: Path, should_add_to_path : bool) -> Path:
         raise RuntimeError("Git is not installed or not in PATH. Please install Git to continue.")
         
     subprocess.run(
-        ["git", "clone", "https://github.com/microsoft/vcpkg.git", str(vcpkg_dir), '--depth=1'], 
+        ["git", "clone", "https://github.com/microsoft/vcpkg.git", str(vcpkg_dir)], 
         check=True
     )
     
@@ -435,31 +435,62 @@ def get_vcpkg_dir():
 def get_emsdk_dir():
     return Path.home() / ".kmake" / "emsdk"
 
-def run_vcpkg_command(args):
+def run_vcpkg_command(args, cwd=None):
     vcpkg = get_local_vcpkg()
     process = subprocess.Popen(
         [vcpkg] + args,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True
+        text=True,
+        cwd=cwd
     )
 
     output = ""
     for line in process.stdout:
-        print(line, end="")  # 👈 stream live to stdout
-        output += line       # 👈 also keep collecting it
+        print(line, end="")
+        output += line
 
     process.wait()
     return process.returncode, output
 
-
-def install_vcpkg_package(name: str, project_name : str, system : str):
+def install_vcpkg_package(name: str, project_name: str, system: str, version: str = ""):
     print(f"⏳ Installing package {name}")
     triplet = system
-    code, output = run_vcpkg_command(["install", f"{name}:{triplet}"])
-    lines = [line.strip().replace("main", project_name) for line in output.splitlines() if line.strip().startswith(("find_", "target_"))]
-    return "\n" + "\n".join(lines) + "\n\n"
 
+    if version:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            try:
+                vcpkg_root = os.path.dirname(get_local_vcpkg())
+                baseline = subprocess.check_output(
+                    ["git", "rev-parse", "HEAD"], cwd=vcpkg_root, text=True
+                ).strip()
+            except Exception:
+                baseline = "0000000000000000000000000000000000000000"
+
+            manifest = {
+                "dependencies": [name],
+                "overrides": [{"name": name, "version": version}],
+                "builtin-baseline": baseline
+            }
+
+            manifest_path = os.path.join(tmpdir, "vcpkg.json")
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+
+            code, output = run_vcpkg_command(
+                ["install", f"--triplet={triplet}"], cwd=tmpdir
+            )
+    else:
+        code, output = run_vcpkg_command(["install", f"{name}:{triplet}"])
+
+    lines = [
+        line.strip().replace("main", project_name)
+        for line in output.splitlines()
+        if line.strip().startswith(("find_", "target_"))
+    ]
+
+    print(f"✅ Installed {name} and Compiled into CMake Files")
+    return "\n" + "\n".join(lines) + "\n\n"
 
 def get_cmake_preset_file_string(
     compiler="clang",
@@ -772,7 +803,7 @@ PrecompileStdHeaders({project_name})
         try:
             for dep, dep_detail in project_detail["deps"].items():
                 if dep not in project_names:
-                    cmake_text += install_vcpkg_package(dep, project_name, build_file["PROJECT_PLATFORM"])
+                    cmake_text += install_vcpkg_package(dep, project_name, build_file["PROJECT_PLATFORM"], dep_detail.get("version", ""))
         except Exception as e:
             pass
 
@@ -820,6 +851,181 @@ add_subdirectory("src/{project_name}")
             cmake_text += f""""""
             Path("CMakeCommons.cmake").write_text(get_cmake_default_fill_string())
             Path("CMakeLists.txt").write_text(cmake_text)
+
+def handle_build(args):
+    import json
+    should_ask = 'ask' in args.options if args.options else False
+    should_run = 'run' in args.options if args.options else False
+    binary_args = []
+    if should_run and args.options:
+        try:
+            run_index = args.options.index('run')
+            binary_args = args.options[run_index + 1:]
+        except (ValueError, IndexError):
+            pass
+    presets_file = Path("CMakePresets.json")
+    if not presets_file.exists():
+        print("❌ CMakePresets.json not found. Run 'kmake run' first.")
+        sys.exit(1)
+    
+    presets_data = json.loads(presets_file.read_text())
+    configure_presets = presets_data.get("configurePresets", [])
+    
+    if not configure_presets:
+        print("❌ No presets found in CMakePresets.json")
+        sys.exit(1)
+    
+    if should_ask:
+        print("\n🔧 Available build presets:")
+        for i, preset in enumerate(configure_presets, 1):
+            display_name = preset.get("displayName", preset["name"])
+            print(f"  {i}. {display_name}")
+        
+        while True:
+            choice = input("\nSelect preset (number): ").strip()
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(configure_presets):
+                    selected_preset = configure_presets[idx]
+                    break
+            except ValueError:
+                pass
+            print("❌ Invalid choice. Please try again.")
+    else:
+        selected_preset = configure_presets[0]
+    
+    preset_name = selected_preset["name"]
+    build_dir = selected_preset["binaryDir"].replace("${sourceDir}", os.getcwd()).replace("${presetName}", preset_name)
+    print(f"\n🔨 Building with preset: {preset_name}")
+    
+    cmake = get_local_cmake()
+    ninja = get_local_ninja()
+    
+    print("\n⚙️  Configuring project...")
+    configure_result = subprocess.run(
+        [cmake, "--preset", preset_name, f"-DCMAKE_MAKE_PROGRAM={ninja}"],
+        cwd=os.getcwd()
+    )
+    
+    if configure_result.returncode != 0:
+        print("❌ Configuration failed!")
+        sys.exit(1)
+    
+    print("\n🔨 Building project...")
+    build_result = subprocess.run(
+        [cmake, "--build", build_dir],
+        cwd=os.getcwd()
+    )
+    
+    if build_result.returncode != 0:
+        print("❌ Build failed!")
+        sys.exit(1)
+    
+    print(f"\n✅ Build completed successfully!")
+    print(f"📁 Output directory: {build_dir}")
+
+    if should_run:
+        build_file = get_build_file()
+        project_name = build_file["PROJECT_NAME"]
+        
+        binary_name = f"{project_name}.exe" if platform.system() == "Windows" else project_name
+        binary_path = Path(build_dir) / "src" / project_name / binary_name
+        
+        if not binary_path.exists():
+            print(f"❌ Binary not found at {binary_path}")
+            sys.exit(1)
+        
+        print(f"\n🚀 Running {binary_name}...")
+        run_result = subprocess.run(
+            [str(binary_path)] + (binary_args if binary_args else []),
+            cwd=os.getcwd()
+        )
+        
+        if run_result.returncode != 0:
+            print(f"\n⚠️  Program exited with code {run_result.returncode}")
+        else:
+            print(f"\n✅ Program completed successfully!")
+
+def handle_doctor(args):
+    import json
+    
+    vcpkg_dir = get_vcpkg_dir()
+    versions_dir = vcpkg_dir / "versions"
+    
+    if not versions_dir.exists():
+        print("❌ vcpkg versions directory not found. Run 'kmake self-install' first.")
+        sys.exit(1)
+    
+    packages_to_check = []
+    if args.packages:
+        packages_to_check = args.packages
+    else:
+        try:
+            build_file = get_build_file()
+            for project_name, project_detail in build_file["PROJECT_STRUCTURE"].items():
+                if "deps" in project_detail:
+                    for dep in project_detail["deps"].keys():
+                        if dep not in packages_to_check:
+                            packages_to_check.append(dep)
+        except Exception as e:
+            print("❌ Could not read dependencies from build.py")
+            print("💡 Usage: kmake doctor <package1> <package2> ...")
+            sys.exit(1)
+    
+    if not packages_to_check:
+        print("ℹ️  No dependencies found in build.py")
+        print("💡 Usage: kmake doctor <package1> <package2> ...")
+        return
+    
+    print("\n📦 Checking package versions in vcpkg...\n")
+    
+    for package in packages_to_check:
+        first_letter = package[0].lower()
+        if first_letter == '-':
+            first_letter = '-'
+        
+        version_file = versions_dir / (first_letter + '-') / f"{package}.json"
+        
+        if not version_file.exists():
+            print(f"❌ {package}: Not found in vcpkg")
+            continue
+        
+        try:
+            data = json.loads(version_file.read_text())
+            versions_list = data.get("versions", [])
+            
+            if not versions_list:
+                print(f"⚠️  {package}: No versions available")
+                continue
+            
+            version_groups = {}
+            for v in versions_list:
+                version_str = v.get("version", v.get("version-string", "."))
+                parts = version_str.split('.')
+                major = parts[0] if parts else "."
+                
+                if major not in version_groups:
+                    version_groups[major] = []
+                version_groups[major].append(version_str)
+            
+            display_parts = []
+            for major in sorted(version_groups.keys(), reverse=True):
+                group = version_groups[major]
+                if len(group) <= 3:
+                    display_parts.append(", ".join(group))
+                else:
+                    display_parts.append(f"{group[0]}, {group[1]}, ... {group[-1]}")
+            
+            version_display = " | ".join(display_parts[:5]) 
+            if len(version_groups) > 5:
+                version_display += " | ..."
+            
+            print(f"✅ {package}: {version_display}")
+            
+        except Exception as e:
+            print(f"❌ {package}: Error reading version file - {e}")
+    
+    print()
 
 def handle_init(args):
     clear_screen()
@@ -895,7 +1101,7 @@ def main():
 
     install_parser = subparsers.add_parser(
         'self-install', 
-        help='Install kmake, the latest CMake, and vcpkg to the user directory.'
+        help='Install kmake (myself), the latest CMake, Ninja and vcpkg to the user directory.'
     )
     install_parser.set_defaults(func=handle_self_install)
 
@@ -908,7 +1114,7 @@ def main():
         "here",             
         nargs="?",          
         default="not_here", 
-        help="If you specify '.' then project will be initialized here, but you can make a project by writing a build.py as well"
+        help="If you specify '.' then project will be initialized here, but you can make a project by writing a 'build.py' and running 'kmake run' as well"
     )
 
     run_parser = subparsers.add_parser(
@@ -917,6 +1123,28 @@ def main():
     )
     run_parser.set_defaults(func=handle_run)
 
+    build_parser = subparsers.add_parser(
+        'build',
+        help="Builds the project with Ninja, If you want to build specific preset use 'kmake build ask', and then it will ask for specific preset from CMakePresets.json to be built"
+    )
+    build_parser.set_defaults(func=handle_build)
+    build_parser.add_argument(
+        'options',
+        nargs='*',
+        help='Options: "ask" to select preset, "run" to execute after building, followed by binary arguments'
+    )
+
+    doctor_parser = subparsers.add_parser(
+        'doctor',
+        help='List available package versions from vcpkg'
+    )
+    doctor_parser.add_argument(
+        'packages',
+        nargs='*',
+        help='Specific packages to check (if none provided, checks all dependencies from build.py)'
+    )
+    doctor_parser.set_defaults(func=handle_doctor)
+
     unit_parser = subparsers.add_parser(
         'unit',
         help='This will add a translation Unit to your project'
@@ -924,6 +1152,8 @@ def main():
     unit_parser.add_argument("project_name", help="Name of the project")
     unit_parser.add_argument("unit_name", help="Name of the unit to add")
     unit_parser.set_defaults(func=handle_unit)
+
+
     args = parser.parse_args()
     args.func(args)
 

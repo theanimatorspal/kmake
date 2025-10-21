@@ -10,9 +10,8 @@ PROJECT_STRUCTURE = {
         "type" : "static-library",
         "deps" : {
             "lua" : {
-                "type" : "static-library"
+                "version" : "5.4.7"
             },
-
         }
     },
     "kmake" : {
@@ -20,10 +19,10 @@ PROJECT_STRUCTURE = {
         "deps" : {
             "kmakelib" : {},
             "lua" : {
-                "type" : "static-library"
+                "version" : "5.4.7"
             },        
             "sol2" : {
-                "type" : "header-only-library"
+                "version" : "3.5.0"
             }
         }
     }

@@ -823,6 +823,11 @@ add_subdirectory("src/{project_name}")
 
 def handle_init(args):
     clear_screen()
+    if args.here != ".":
+        print("✅ Initializing Project by Making a Directory ....")
+    else:
+        print("✅ Initializing Project HERE....")
+
     print_header("🚀 kmake - C/C++ Project Initialization")
     project_name = get_input("Project name", "my_project")
     project_language = get_choice("Project Language", ["C", "C++"])
@@ -832,10 +837,9 @@ def handle_init(args):
     if project_language == "C++":
         project_language_standard = get_choice("C++ Language Standard", ["03", "11", "14", "20", "23"])
     
-    if "here" not in args:
+    if args.here != ".":
         os.mkdir(os.path.join(os.getcwd(), project_name))
         os.chdir(os.path.join(os.getcwd(), project_name))
-    
     
     Path("build.py").write_text(f"""
 PROJECT_NAME = "{project_name}"
@@ -900,7 +904,12 @@ def main():
         help='Initialize Project'
     )
     init_parser.set_defaults(func=handle_init)
-    init_parser.add_argument("here")
+    init_parser.add_argument(
+        "here",             
+        nargs="?",          
+        default="not_here", 
+        help="If you specify '.' then project will be initialized here, but you can make a project by writing a build.py as well"
+    )
 
     run_parser = subparsers.add_parser(
         'run',

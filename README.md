@@ -1,5 +1,5 @@
 <h1 align="center">🔨 kmake</h1>
-<p align="center"><i>Zero-Friction C/C++ Project Setup & Build Management</i></p>
+<p align="center"><i>UnFuck C/C++ Project Setup & Build Management</i></p>
 <p align="center"><b>Platform Support:</b> Windows ✅ | Linux ✅ | macOS ✅</p>
 
 <p align="center">

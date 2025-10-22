@@ -14,7 +14,7 @@
 
 ## 🎯 What is kmake?
 
-**kmake** is a lightweight single file Python-based tool that eliminates the pain of setting up C/C++ projects. It automatically installs CMake, vcpkg, cmake, manages dependencies, generates build configurations, and lets you focus on writing code instead of fighting build systems.
+**kmake** is a lightweight single file (Will always be single-file) Python-based tool that eliminates the pain of setting up C/C++ projects. It automatically installs CMake, vcpkg, ninja, manages dependencies, generates build configurations, and lets you focus on writing code instead of fighting build systems.
 
 ## 🚀 Quick Start
 

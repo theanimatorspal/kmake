@@ -1,2 +1,9 @@
 out/
 .cache/
+src/
+.clang-format
+.gitignore
+CMakeCommons.cmake
+CMakeLists.txt
+CMakePresets.json
+compile_commands.json

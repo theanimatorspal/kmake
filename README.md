@@ -174,6 +174,7 @@ python kmake.py self-install
 - **Python 3.8+**
 - **Git** (for vcpkg installation)
 - **A C/C++ compiler** (clang, gcc, or MSVC)
+- **LLVM** Just install LLVM from official website or package manager (Later, will integrate compilers + LLVM in this tool itself)
 
 ---
 

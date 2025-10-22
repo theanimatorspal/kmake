@@ -605,9 +605,14 @@ def get_yes_no(prompt, default=True):
         print("❌ Please enter 'y' or 'n'")
 
 def get_cmake_default_fill_string():
-    cmake_start = f"""
+    cmake_start = r"""
+
+function(RunOnce)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  
+find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+
 """
+
     if platform.system() == "Windows":
         cmake_start += """ 
 
@@ -626,6 +631,49 @@ set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 if(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED)
 endif()
+endfunction()
+
+if(CLANG_TIDY_EXE)
+set(CLANG_TIDY_CHECKS
+    "clang-analyzer-*,hicpp-*,readability-simplify-boolean-expr,readability-delete-null-pointer,portability-simd-intrinsics"
+)
+
+set(CLANG_TIDY_ARGS
+    --warnings-as-errors=*
+    -header-filter=.*
+    --checks=${CLANG_TIDY_CHECKS}
+    --format-style=file
+)
+
+set(CMAKE_C_CLANG_TIDY   "${CLANG_TIDY_EXE};${CLANG_TIDY_ARGS}")
+set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};${CLANG_TIDY_ARGS}")
+else()
+    message(WARNING "clang-tidy not found! Static analysis will be skipped.")
+endif()
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion)
+elseif (MSVC)
+    add_compile_options(/W4 /permissive-)
+endif()
+
+if(MSVC)
+    message(STATUS "MSVC detected: enabling AddressSanitizer")
+    add_compile_options(/fsanitize=address /Zi /Od)
+    add_link_options(/INCREMENTAL:NO /fsanitize=address)
+else()
+    set(SANITIZERS "")
+    set(SANITIZERS "${SANITIZERS}address,undefined")
+    if(UNIX AND NOT APPLE)
+        set(SANITIZERS "${SANITIZERS},leak")
+    elseif(APPLE)
+        set(SANITIZERS "${SANITIZERS},leak")
+    endif()
+    add_compile_options(-fsanitize=${SANITIZERS} -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=${SANITIZERS})
+endif()
+
+
 
 function(PrecompileStdHeaders TARGET_NAME)
     target_precompile_headers(${TARGET_NAME} PRIVATE
@@ -766,6 +814,10 @@ def get_build_file():
 def handle_run(arg):
     build_file = get_build_file()
     Path("CMakePresets.json").write_text(get_cmake_preset_file_string(compiler=build_file["PROJECT_COMPILER"], platform=build_file["PROJECT_PLATFORM"]))
+    Path(".clang-format").write_text("""BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 100
+""")
     project_names = []
     for project_name, project_detail in build_file["PROJECT_STRUCTURE"].items():
         project_names.append(project_name)
@@ -838,6 +890,7 @@ PrecompileStdHeaders({project_name})
 {CMAKE_MINIMUM_REQUIRED_STRING}
 project({project_name})
 include("CMakeCommons.cmake")
+RunOnce()
 """
             if build_file["PROJECT_LANGUAGE"] == "C++":
                 cmake_text += f"""set(CMAKE_CXX_STANDARD {build_file["PROJECT_LANGUAGE_STANDARD"]})
@@ -1052,6 +1105,7 @@ PROJECT_NAME = "{project_name}"
 PROJECT_LANGUAGE = "{project_language}"
 PROJECT_LANGUAGE_STANDARD = "{project_language_standard}"
 PROJECT_COMPILER = "{project_compiler}"
+PROJECT_STANDARD_LIBRARY = "default" # can change to "none" for no std library
 PROJECT_PLATFORM = "x64-windows" # basically a vcpkg triplet. Can be any one from vcpkg's supported triplets like x64-windows, x64-windows-static, x64-linux (untested), x64-linux-dynamic (untested), x64-osx(untested), arm64-android (will be supported later), wasm32-emscripten, etc.
 PROJECT_STRUCTURE = {{ }}
  """)

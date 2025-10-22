@@ -1,5 +1,9 @@
 
+
+function(RunOnce)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  
+find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+
  
 
 if(MSVC)
@@ -15,6 +19,49 @@ set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 if(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED)
 endif()
+endfunction()
+
+if(CLANG_TIDY_EXE)
+set(CLANG_TIDY_CHECKS
+    "clang-analyzer-*,hicpp-*,modernize-*,readability-simplify-boolean-expr,readability-delete-null-pointer,portability-simd-intrinsics"
+)
+
+set(CLANG_TIDY_ARGS
+    --warnings-as-errors=*
+    -header-filter=.*
+    --checks=${CLANG_TIDY_CHECKS}
+    --format-style=file
+)
+
+set(CMAKE_C_CLANG_TIDY   "${CLANG_TIDY_EXE};${CLANG_TIDY_ARGS}")
+set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};${CLANG_TIDY_ARGS}")
+else()
+    message(WARNING "clang-tidy not found! Static analysis will be skipped.")
+endif()
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion)
+elseif (MSVC)
+    add_compile_options(/W4 /permissive-)
+endif()
+
+if(MSVC)
+    message(STATUS "MSVC detected: enabling AddressSanitizer")
+    add_compile_options(/fsanitize=address /Zi /Od)
+    add_link_options(/INCREMENTAL:NO /fsanitize=address)
+else()
+    set(SANITIZERS "")
+    set(SANITIZERS "${SANITIZERS}address,undefined")
+    if(UNIX AND NOT APPLE)
+        set(SANITIZERS "${SANITIZERS},leak")
+    elseif(APPLE)
+        set(SANITIZERS "${SANITIZERS},leak")
+    endif()
+    add_compile_options(-fsanitize=${SANITIZERS} -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=${SANITIZERS})
+endif()
+
+
 
 function(PrecompileStdHeaders TARGET_NAME)
     target_precompile_headers(${TARGET_NAME} PRIVATE

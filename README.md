@@ -101,6 +101,9 @@ PROJECT_STRUCTURE = {
 
 If version is not given, like "lua" : {} then latest package is going to be installed. Remember that you can only compile one project at a time (so if one of your programs uses old lua and another uses new lua then you cannot compile those in parallel, you have to compile one)
 
+
+Also if you use wasm32-emscripten as the platform then make sure to select C++ standard <=17, it has issues with C++ standard >20.
+Suggestion is -> Use C++17 for best of both worlds (compatibility and latest features of C++). Or just write in C (Any Standard).
 ---
 
 ### Step 4: Generate Build Files
@@ -133,6 +136,7 @@ After that, just press "Build ⚙️" button you see at VSCode bottom left. It w
 
 However if you want to build and run yourself, you can do `kmake build run <arguments to your binary>` this will compile and run the binary with the command line arguments you give to it, using the first preset in the generated CMakePresets.json (generally a debug build). If you want release then you can run `kmake build ask run <arguments to your binary>` then it will prompt which preset to build and run and from there you can select the appropriate option you'd like.
 
+Note that arguments to your binary is not tested for now (for all platforms), will test it later.
 
 ## 📖 Usage Guide
 

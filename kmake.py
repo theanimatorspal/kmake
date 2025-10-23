@@ -872,9 +872,6 @@ add_library({project_name} DYNAMIC ${{{project_name}_SRC}})
         elif project_detail["type"] == "binary":
             cmake_text += f"""
 add_executable({project_name}  ${{{project_name}_SRC}})
-if(EMSCRIPTEN)
-    set_target_properties({project_name} PROPERTIES SUFFIX ".html")
-endif()
 """
         else:
             raise("You have to specify the type - either binary, static-library or dynamic-library")
@@ -1087,6 +1084,8 @@ def handle_build(args):
             binary_path = Path(build_dir) / "src" / project_name
             os.chdir(binary_path)
 
+            Path(os.path.join(binary_path, f"{project_name}.html")).write_text(html_content)
+
             # here write the html content to {project_name}.html file
             # and then serve in this port
             # open browser at http://localhost:3475/{project_name}.html
@@ -1102,17 +1101,12 @@ def handle_build(args):
             else:
                 os.system(f"xdg-open {url}")
 
-            def run_server():
+            try:
                 httpd.serve_forever()
+            except KeyboardInterrupt:
+                httpd.shutdown()
+                pass
 
-            thread = threading.Thread(target=run_server)
-            thread.start()
-
-            print("Server running for 10 seconds...")
-            time.sleep(10)
-            httpd.shutdown()
-            thread.join()
-            print("Server stopped.")
 
 def handle_doctor(args):
     import json

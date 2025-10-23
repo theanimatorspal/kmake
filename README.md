@@ -99,7 +99,7 @@ PROJECT_STRUCTURE = {
 }
 ```
 
-If version is not given, like "lua" : {} then latest package is going to be installed. Remember that you can only compile one project at a time (so if one of your programs uses old lua and another uses new lua then you cannot compile those in parallel, you have to compile one)
+If version is not given, like "lua" : {} then latest package is going to be installed. Remember that you can only compile one project at a time (so if one of your programs uses old lua and another uses new lua then you cannot compile those in parallel, you have to compile one after another)
 
 
 Also if you use wasm32-emscripten as the platform then make sure to select C++ standard <=17, it has issues with C++ standard >20.

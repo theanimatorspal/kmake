@@ -196,7 +196,7 @@ Contributions are welcome! Here's how you can help:
 **Roadmap Ideas:**
 - Template system (`kmake init --template sdl2-game`)
 - Direct Integration with github for kmake based projects (similar to go's)
-- Dependency version locking
+- Dependency version locking [DONE]
 - Automatic installation of various compilers
 
 ---

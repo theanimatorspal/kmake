@@ -324,6 +324,12 @@ def install_emsdk(base_dir: Path, should_add_to_path: bool = True) -> Path:
     subprocess.run([emsdk_script, "install", "latest"], cwd=emsdk_dir, shell=True, check=True)
     subprocess.run([emsdk_script, "activate", "latest"], cwd=emsdk_dir, shell=True, check=True)
     subprocess.run([emsdk_script, "activate", "--permanent"], cwd=emsdk_dir, shell=True, check=True)
+
+    if platform.system() == "Windows":
+        subprocess.run(["emsdk_env.bat"], cwd=emsdk_dir, shell=True, check=True)
+    else:
+        subprocess.run(["source", "./emsdk_env.sh"], cwd=emsdk_dir, shell=True, check=True)
+
     
     if should_add_to_path:
         add_to_path(emsdk_dir)
@@ -494,24 +500,37 @@ def install_vcpkg_package(name: str, project_name: str, system: str, version: st
 
 def get_cmake_preset_file_string(
     compiler="clang",
-    platform="x64-windows",
+    platform_triplet="x64-windows",
     android_toolchain="C:/AndroidSDK/ndk/26.3.11579264/build/cmake/android.toolchain.cmake",
     android_platform="android-31"
 ):
     vcpkg_toolchain = get_vcpkg_dir() / "scripts" / "buildsystems" / "vcpkg.cmake"
+    emscripten_toolchain = get_emsdk_dir() / "upstream" / "emscripten" / "cmake" / "Modules" / "Platform" / "Emscripten.cmake"
+    cmake_prefix_path = get_vcpkg_dir() / "installed" / platform_triplet
     
     compilers = {
         "clang": ("clang", "clang++"),
-        "gcc": ("gcc", "g++")
+        "gcc": ("gcc", "g++"),
+        "emcc": ("emcc", "em++")
     }
+
+    # WORKAROUND
+    if platform.system() == "Windows":
+        compilers = {
+            "clang": ("clang", "clang++"),
+            "gcc": ("gcc", "g++"),
+            "emcc": ("emcc.bat", "em++.bat")
+        }
+
     c_compiler, cxx_compiler = compilers.get(compiler, ("clang", "clang++"))
     
-    is_android = platform.startswith("arm") and "android" in platform
-    is_web = "wasm" in platform or "emscripten" in platform
+    is_android = platform_triplet.startswith("arm") and "android" in platform_triplet
+    is_web = "wasm" in platform_triplet or "emscripten" in platform_triplet
     
     base_cache = {
         "CMAKE_PRESET_NAME": "${presetName}",
-        "CMAKE_TOOLCHAIN_FILE": str(vcpkg_toolchain).replace("\\", "/")
+        "CMAKE_TOOLCHAIN_FILE": str(vcpkg_toolchain).replace("\\", "/"),
+        # "CMAKE_PREFIX_PATH" : str(cmake_prefix_path).replace("\\","/")
     }
     
     if is_android:
@@ -519,17 +538,23 @@ def get_cmake_preset_file_string(
             "CMAKE_SYSTEM_NAME": "Android",
             "CMAKE_ANDROID_NDK": android_toolchain.split("/build/cmake")[0],
             "CMAKE_ANDROID_STL_TYPE": "c++_shared",
-            "VCPKG_TARGET_TRIPLET": platform
+            "VCPKG_TARGET_TRIPLET": platform_triplet
         })
     elif is_web:
-        base_cache["VCPKG_TARGET_TRIPLET"] = platform
+        base_cache["VCPKG_TARGET_TRIPLET"] = platform_triplet
+        base_cache.update({
+            "CMAKE_C_COMPILER": c_compiler,
+            "CMAKE_CXX_COMPILER": cxx_compiler,
+            "CMAKE_TOOLCHAIN_FILE": str(vcpkg_toolchain).replace("\\", "/"),
+            "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": str(emscripten_toolchain).replace("\\", "/"),
+        })
     else:
         base_cache.update({
             "CMAKE_C_COMPILER": c_compiler,
             "CMAKE_CXX_COMPILER": cxx_compiler
         })
     
-    arch = "x64" if "x64" in platform or "arm64" in platform else "x86"
+    arch = "x64" if "x64" in platform_triplet or "arm64" in platform_triplet else "x86"
     strategy = "" if is_web or is_android else f''',
       "architecture": {{
         "value": "{arch}",
@@ -540,8 +565,8 @@ def get_cmake_preset_file_string(
     presets = []
     
     for build_type in build_types:
-        preset_name = f"{platform}-{build_type.lower()}"
-        display_name = f"{platform} {build_type}"
+        preset_name = f"{platform_triplet}-{build_type.lower()}"
+        display_name = f"{platform_triplet} {build_type}"
         
         cache_vars = '",\n        "'.join([f'{k}": "{v}' for k, v in base_cache.items()])
         
@@ -606,16 +631,12 @@ def get_yes_no(prompt, default=True):
 
 def get_cmake_default_fill_string():
     cmake_start = r"""
-
-function(RunOnce)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  
-find_program(CLANG_TIDY_EXE NAMES clang-tidy)
-
+function(RunOnce)
 """
 
     if platform.system() == "Windows":
         cmake_start += """ 
-
 if(MSVC)
 if(POLICY CMP0141)
 cmake_policy(SET CMP0141 NEW)
@@ -633,6 +654,8 @@ if(WIN32)
 endif()
 endfunction()
 
+function(ClangTidyChecks)
+find_program(CLANG_TIDY_EXE NAMES clang-tidy)
 if(CLANG_TIDY_EXE)
 set(CLANG_TIDY_CHECKS
     "clang-analyzer-*,hicpp-*,readability-simplify-boolean-expr,readability-delete-null-pointer,portability-simd-intrinsics"
@@ -672,7 +695,12 @@ else()
     add_compile_options(-fsanitize=${SANITIZERS} -fno-omit-frame-pointer -g)
     add_link_options(-fsanitize=${SANITIZERS})
 endif()
+endfunction()
 
+if(EMSCRIPTEN)
+    # Disable cmake_ninja_dyndep for modules / PCH
+    set(CMAKE_NINJA_FORCE_RESPONSE_FILE 1)
+endif()
 
 
 function(PrecompileStdHeaders TARGET_NAME)
@@ -813,7 +841,7 @@ def get_build_file():
 
 def handle_run(arg):
     build_file = get_build_file()
-    Path("CMakePresets.json").write_text(get_cmake_preset_file_string(compiler=build_file["PROJECT_COMPILER"], platform=build_file["PROJECT_PLATFORM"]))
+    Path("CMakePresets.json").write_text(get_cmake_preset_file_string(compiler=build_file["PROJECT_COMPILER"], platform_triplet=build_file["PROJECT_PLATFORM"]))
     Path(".clang-format").write_text("""BasedOnStyle: Google
 IndentWidth: 4
 ColumnLimit: 100
@@ -844,6 +872,9 @@ add_library({project_name} DYNAMIC ${{{project_name}_SRC}})
         elif project_detail["type"] == "binary":
             cmake_text += f"""
 add_executable({project_name}  ${{{project_name}_SRC}})
+if(EMSCRIPTEN)
+    set_target_properties({project_name} PROPERTIES SUFFIX ".html")
+endif()
 """
         else:
             raise("You have to specify the type - either binary, static-library or dynamic-library")
@@ -909,6 +940,7 @@ def handle_build(args):
     import json
     should_ask = 'ask' in args.options if args.options else False
     should_run = 'run' in args.options if args.options else False
+    should_clean = 'clean' in args.options if args.options else False
     binary_args = []
     if should_run and args.options:
         try:
@@ -953,6 +985,21 @@ def handle_build(args):
     
     cmake = get_local_cmake()
     ninja = get_local_ninja()
+
+    if should_clean:
+        build_dir = os.path.join(os.getcwd(), "out")
+        print(f"🧹 Cleaning build directory: {build_dir}")
+
+        if not os.path.exists(build_dir):
+            print("⚠️ Build directory not found, nothing to clean.")
+            return
+
+        try:
+            shutil.rmtree(build_dir)
+            print("✅ Build directory removed successfully.")
+        except Exception as e:
+            print(f"❌ Failed to remove build directory: {e}")
+            sys.exit(1)
     
     print("\n⚙️  Configuring project...")
     configure_result = subprocess.run(
@@ -980,24 +1027,92 @@ def handle_build(args):
     if should_run:
         build_file = get_build_file()
         project_name = build_file["PROJECT_NAME"]
-        
-        binary_name = f"{project_name}.exe" if platform.system() == "Windows" else project_name
-        binary_path = Path(build_dir) / "src" / project_name / binary_name
-        
-        if not binary_path.exists():
-            print(f"❌ Binary not found at {binary_path}")
-            sys.exit(1)
-        
-        print(f"\n🚀 Running {binary_name}...")
-        run_result = subprocess.run(
-            [str(binary_path)] + (binary_args if binary_args else []),
-            cwd=os.getcwd()
-        )
-        
-        if run_result.returncode != 0:
-            print(f"\n⚠️  Program exited with code {run_result.returncode}")
+
+        if "wasm" not in build_file["PROJECT_PLATFORM"]: 
+            if "windows" in build_file["PROJECT_PLATFORM"]:
+                binary_name = f"{project_name}.exe"
+            else:
+                binary_name = project_name
+            binary_path = Path(build_dir) / "src" / project_name / binary_name
+            
+            if not binary_path.exists():
+                print(f"❌ Binary not found at {binary_path}")
+                sys.exit(1)
+            
+            print(f"\n🚀 Running {binary_name}...")
+            run_result = subprocess.run(
+                [str(binary_path)] + (binary_args if binary_args else []),
+                cwd=os.getcwd()
+            )
+            
+            if run_result.returncode != 0:
+                print(f"\n⚠️  Program exited with code {run_result.returncode}")
+            else:
+                print(f"\n✅ Program completed successfully!")
         else:
-            print(f"\n✅ Program completed successfully!")
+            from http.server import HTTPServer, SimpleHTTPRequestHandler
+            import time
+            import threading
+            html_content = f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>{project_name}</title>
+                <style>
+                    html, body {{
+                        height: 100%;
+                        margin: 0;
+                    }}
+                    body {{
+                        display: flex;
+                        justify-content: center;  /* horizontal center */
+                        align-items: center;      /* vertical center */
+                        background-color: #111;   /* dark background */
+                    }}
+                    canvas {{
+                        width: 99vw;   /* 90% of viewport width */
+                        height: 99vh;  /* 90% of viewport height */
+                        border: 2px solid #fff; /* optional: see edges */
+                    }}
+                </style>
+            </head>
+            <body>
+                <canvas id="canvas" width="1600" height="1200"></canvas>
+                <script src="{project_name}.js"></script>
+            </body>
+            </html>
+            """
+
+            binary_path = Path(build_dir) / "src" / project_name
+            os.chdir(binary_path)
+
+            # here write the html content to {project_name}.html file
+            # and then serve in this port
+            # open browser at http://localhost:3475/{project_name}.html
+            port = 3475
+            httpd = HTTPServer(("", port), SimpleHTTPRequestHandler)
+            url = f"http://localhost:{port}/{project_name}.html"
+
+            # open browser
+            if sys.platform == "win32":
+                os.system(f"start {url}")
+            elif sys.platform == "darwin":
+                os.system(f"open {url}")
+            else:
+                os.system(f"xdg-open {url}")
+
+            def run_server():
+                httpd.serve_forever()
+
+            thread = threading.Thread(target=run_server)
+            thread.start()
+
+            print("Server running for 10 seconds...")
+            time.sleep(10)
+            httpd.shutdown()
+            thread.join()
+            print("Server stopped.")
 
 def handle_doctor(args):
     import json
@@ -1104,7 +1219,7 @@ def handle_init(args):
 PROJECT_NAME = "{project_name}"
 PROJECT_LANGUAGE = "{project_language}"
 PROJECT_LANGUAGE_STANDARD = "{project_language_standard}"
-PROJECT_COMPILER = "{project_compiler}"
+PROJECT_COMPILER = "{project_compiler}" # "clang" or "gcc" or "emcc" for WASM
 PROJECT_STANDARD_LIBRARY = "default" # can change to "none" for no std library
 PROJECT_PLATFORM = "x64-windows" # basically a vcpkg triplet. Can be any one from vcpkg's supported triplets like x64-windows, x64-windows-static, x64-linux (untested), x64-linux-dynamic (untested), x64-osx(untested), arm64-android (will be supported later), wasm32-emscripten, etc.
 PROJECT_STRUCTURE = {{ }}

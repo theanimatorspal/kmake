@@ -22,7 +22,7 @@
 
 ```bash
 # Clone or download kmake
-git clone https://github.com/yourusername/kmake.git
+git clone https://github.com/theanimatorspal/kmake.git
 cd kmake
 
 # Install kmake and its dependencies

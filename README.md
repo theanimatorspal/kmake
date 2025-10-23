@@ -70,10 +70,11 @@ Edit the generated `build.py`:
 ```python
 
 PROJECT_NAME = "kmake"
-PROJECT_TYPE = "binary"
+PROJECT_TYPE = "binary" # this doesn't do anything
 PROJECT_LANGUAGE = "C++"
 PROJECT_LANGUAGE_STANDARD = "20"
-PROJECT_COMPILER = "clang"
+PROJECT_COMPILER = "clang" # "gcc" or "emcc"
+PROJECT_STANDARD_LIBRARY = "default" # can change to "none" for no std library
 PROJECT_PLATFORM = "x64-windows" # basically a vcpkg triplet. Can be any one from vcpkg's supported triplets like x64-windows, x64-windows-static, x64-linux (untested), x64-linux-dynamic (untested), x64-osx(untested), arm64-android (will be supported later), wasm32-emscripten (untested), etc.
 PROJECT_STRUCTURE = {
     "kmakelib" : {
@@ -84,6 +85,11 @@ PROJECT_STRUCTURE = {
             },
         }
     },
+
+    # The order of the projects is the order in which each should compile
+    # So the last one is going to be your "main project"
+    # For example if you want to make a game engine, above will be your engine library and below will be your game.
+
     "kmake" : {
         "type" : "binary",
         "deps" : {
@@ -99,7 +105,7 @@ PROJECT_STRUCTURE = {
 }
 ```
 
-If version is not given, like "lua" : {} then latest package is going to be installed. Remember that you can only compile one project at a time (so if one of your programs uses old lua and another uses new lua then you cannot compile those in parallel, you have to compile one after another)
+If version is not given, like "lua" : {} then latest package is going to be installed. Remember that you can only compile one project at a time (so if one of your programs uses old lua and another uses new lua then you cannot compile those in parallel, you have to compile one after another).
 
 
 Also if you use wasm32-emscripten as the platform then make sure to select C++ standard <=17, it has issues with C++ standard >20.

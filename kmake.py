@@ -1335,7 +1335,6 @@ def main():
     unit_parser.add_argument("unit_name", help="Name of the unit to add")
     unit_parser.set_defaults(func=handle_unit)
 
-
     args = parser.parse_args()
     args.func(args)
 

@@ -202,6 +202,8 @@ Contributions are welcome! Here's how you can help:
 **Roadmap Ideas:**
 - Template system (`kmake init --template sdl2-game`)
 - Direct Integration with github for kmake based projects (similar to go's)
+- Support for Fil-C (Memory Safe Runtime Compiler for C/C++), Different compiler versions support along with automatic installation
+- Ease of setup to work with LLVM libraries (For developing tools for C/C++)
 - Dependency version locking [DONE]
 - Automatic installation of various compilers
 

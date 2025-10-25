@@ -26,32 +26,13 @@ import urllib.request
 import json
 import zipfile
 import tarfile
-import shutil
 import argparse
 import shutil
 import tempfile
 from pathlib import Path
 
-"""
-
-# ALL THE DATABASE and CONSTANT STRINGS should be here
-
-"""
-
 
 CMAKE_MINIMUM_REQUIRED_STRING = "cmake_minimum_required(VERSION 3.28)"
-
-DATABASE = {
-    "vulkan-all" : [
-        "vulkan",
-        "sdl2",
-        "spirv-tools",
-        "glslang",
-        "spirv-cross",
-        "freetype",
-        "harfbuzz",
-    ]
-}
 
 """
 
@@ -893,7 +874,7 @@ add_library({project_name} DYNAMIC ${{{project_name}_SRC}})
 add_executable({project_name}  ${{{project_name}_SRC}})
 """
         else:
-            raise("You have to specify the type - either binary, static-library or dynamic-library")
+            raise ValueError("You have to specify the type - either binary, static-library or dynamic-library")
 
         if build_file["PROJECT_LANGUAGE"] == "C++":
             cmake_text+=f"""
@@ -909,10 +890,10 @@ PrecompileStdHeaders({project_name})
         try:
             if "deps" in project_detail:
                 first = True
-                for dep in project_detail["deps"].items():
+                for dep in project_detail["deps"].keys():
                     if dep in project_names:
                         if first:
-                            cmake_text += "target_link_libraries("
+                            cmake_text += f"target_link_libraries({project_name}"
                             first = False
                         cmake_text += f" {dep}"
                 if not first:
@@ -1262,13 +1243,9 @@ namespace {project_name} {{
     else:
         header_guard = f"_{unit_name.upper()}_H_"
         file1 = os.path.join("src", project_name, "include", project_name, f"{unit_name}.h")
-        file2 = os.path.join("src", project_name, "include", f"{unit_name}.c")
+        file2 = os.path.join("src", project_name, "src", f"{unit_name}.c")
         header_text = f"""#ifndef {header_guard}
 #define {header_guard}
-
-namespace {project_name} {{
-
-}}
 
 #endif // {header_guard}
 """

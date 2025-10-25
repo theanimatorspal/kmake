@@ -1,0 +1,6 @@
+build.py
+.clang-format
+src/
+CMakeCommons.cmake
+CMakeLists.txt
+CMakePresets.json

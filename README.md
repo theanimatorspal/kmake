@@ -74,11 +74,11 @@ PROJECT_TYPE = "binary" # this doesn't do anything
 PROJECT_LANGUAGE = "C++"
 PROJECT_LANGUAGE_STANDARD = "20"
 PROJECT_COMPILER = "clang" # "gcc" or "emcc"
-PROJECT_STANDARD_LIBRARY = "default" # can change to "none" for no std library
-PROJECT_PLATFORM = "x64-windows" # basically a vcpkg triplet. Can be any one from vcpkg's supported triplets like x64-windows, x64-windows-static, x64-linux (untested), x64-linux-dynamic (untested), x64-osx(untested), arm64-android (will be supported later), wasm32-emscripten (untested), etc.
+PROJECT_STANDARD_LIBRARY = "default" # can change to "none" for no std library (will add this feature later)
+PROJECT_PLATFORM = "x64-windows" # Can be any one from x64-windows, x64-windows-static, x64-linux (untested), x64-linux-dynamic (untested), x64-osx(untested), arm64-android (will be supported later), wasm32-emscripten [VCPKG triplets]
 PROJECT_STRUCTURE = {
     "kmakelib" : {
-        "type" : "static-library",
+        "type" : "static-library", # can be "binary", "dynamic-library", OR "static-library"
         "deps" : {
             "lua" : {
                 "version" : "5.4.7" 
@@ -203,6 +203,7 @@ Contributions are welcome! Here's how you can help:
 - Template system (`kmake init --template sdl2-game`)
 - Direct Integration with github for kmake based projects (similar to go's)
 - Support for Fil-C (Memory Safe Runtime Compiler for C/C++), Different compiler versions support along with automatic installation
+- Effortless Android Support
 - Ease of setup to work with LLVM libraries (For developing tools for C/C++)
 - Dependency version locking [DONE]
 - Automatic installation of various compilers

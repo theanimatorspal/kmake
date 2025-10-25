@@ -924,6 +924,11 @@ RunOnce()
                 cmake_text += f"""set(CMAKE_CXX_STANDARD {build_file["PROJECT_LANGUAGE_STANDARD"]})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 """
+            elif build_file["PROJECT_LANGUAGE"] == "C":
+                cmake_text += f"""set(CMAKE_C_STANDARD {build_file["PROJECT_LANGUAGE_STANDARD"]})
+set(CMAKE_C_STANDARD_REQUIRED ON)
+"""
+
             for project_name in project_names:
                 cmake_text += f"""
 include_directories("src/{project_name}/include")
@@ -1198,28 +1203,51 @@ def handle_init(args):
 
     print_header("🚀 kmake - C/C++ Project Initialization")
     project_name = get_input("Project name", "my_project")
-    project_language = get_choice("Project Language", ["C", "C++"])
-    project_compiler = get_choice("Project Compiler", ["clang", "gcc"])
-    if project_language == "C":
-        project_language_standard = get_choice("C Language Standard", ["89", "99", "11", "17"])
-    if project_language == "C++":
-        project_language_standard = get_choice("C++ Language Standard", ["03", "11", "14", "20", "23"])
     
     if args.here != ".":
         os.mkdir(os.path.join(os.getcwd(), project_name))
         os.chdir(os.path.join(os.getcwd(), project_name))
     
-    Path("build.py").write_text(f"""
-PROJECT_NAME = "{project_name}"
-PROJECT_LANGUAGE = "{project_language}"
-PROJECT_LANGUAGE_STANDARD = "{project_language_standard}"
-PROJECT_COMPILER = "{project_compiler}" # "clang" or "gcc" or "emcc" for WASM
+    print("Now edit the build.py file and setup your project")
+    Path("build.py").write_text(r"""PROJECT_NAME = "kmake"
+PROJECT_LANGUAGE = "C++" # "C" or "C++"
+PROJECT_LANGUAGE_STANDARD = "20" # 11, 14, 17, 20 etc for C++ and 89, 99, 11, 23 etc for C
+PROJECT_COMPILER = "clang" # "clang" or "gcc" [whichever is installed/preferred] or "emcc" (for web-assembly)
 PROJECT_STANDARD_LIBRARY = "default" # can change to "none" for no std library
-PROJECT_PLATFORM = "x64-windows" # basically a vcpkg triplet. Can be any one from vcpkg's supported triplets like x64-windows, x64-windows-static, x64-linux (untested), x64-linux-dynamic (untested), x64-osx(untested), arm64-android (will be supported later), wasm32-emscripten, etc.
-PROJECT_STRUCTURE = {{ }}
- """)
+PROJECT_PLATFORM = "x64-windows" # Can be any one from x64-windows, x64-windows-static, x64-linux (untested), x64-linux-dynamic (untested), x64-osx(untested), arm64-android (will be supported later), wasm32-emscripten [VCPKG triplets]
+PROJECT_STRUCTURE = { # remember everywhere CURLY braces
+    # This  is just an example, modify the following for your project.
+    "kmakelib" : {
+        "type" : "static-library", # can be "binary", "dynamic-library", OR "static-library"
+        "deps" : {
+            "lua" : {
+                "version" : "5.4.7" # can omit this to use the latest version, so you have to "lua" : {}
+            },
+        }
+    },
 
-    print(f"\nProject name: {project_name} Created, fill the PROJECT_STRUCTURE in build.py, see github for reference")
+    # The order of the projects is the order in which each should compile
+    # So the last one is going to be your "main project"
+    # For example if you want to make a game engine, above will be your engine library and below will be your game(s).
+    # if your project is really simple just create one entry like below, and remove other things in this PROJECT_STRUCTURE dictionary
+
+    "kmake" : {
+        "type" : "binary",
+        "deps" : {
+            "kmakelib" : {},
+            "lua" : {
+                "version" : "5.4.7" 
+            },        
+            "sol2" : {
+                "version" : "3.5.0"
+            }
+        }
+    }
+}
+# Now run "kmake run"  in order to setup the files and get started,
+# use "kmake unit <project name> <unit name>" to create header + source file pair, like "kmake unit kmake main" will generate main.h/hpp and main.c/cpp respectively
+# run "kmake build run" in order to run your project(make sure to add a main function in src/file.cpp)                               
+""")
 
 def handle_unit(arg):
     build_file = get_build_file()

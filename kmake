@@ -1,0 +1,3 @@
+#!/bin/sh
+# Run kmake.py using Python, forwarding all arguments
+python3 "$(dirname "$0")/kmake.py" "$@"

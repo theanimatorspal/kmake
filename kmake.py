@@ -404,7 +404,7 @@ def install_self():
     target_dir = Path(__file__).resolve().parent
     add_to_path(target_dir)
     if platform.system() != "Windows":
-        for py_file in target_dir.glob("*.py"):
+        for py_file in target_dir.glob("kmake"):
             py_file.chmod(py_file.stat().st_mode | 0o111)  # add executable bits
         print(f"✅ Made Python files in {target_dir} executable")
 

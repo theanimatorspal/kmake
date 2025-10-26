@@ -321,14 +321,16 @@ def install_emsdk(base_dir: Path, should_add_to_path: bool = True) -> Path:
     
     emsdk_script = "emsdk.bat" if platform.system() == "Windows" else "./emsdk"
     
-    subprocess.run([emsdk_script, "install", "latest"], cwd=emsdk_dir, shell=True, check=True)
-    subprocess.run([emsdk_script, "activate", "latest"], cwd=emsdk_dir, shell=True, check=True)
-    subprocess.run([emsdk_script, "activate", "--permanent"], cwd=emsdk_dir, shell=True, check=True)
 
     if platform.system() == "Windows":
+        subprocess.run([emsdk_script, "install", "latest"], cwd=emsdk_dir, shell=True, check=True)
+        subprocess.run([emsdk_script, "activate", "latest"], cwd=emsdk_dir, shell=True, check=True)
+        subprocess.run([emsdk_script, "activate", "--permanent"], cwd=emsdk_dir, shell=True, check=True)
         subprocess.run(["emsdk_env.bat"], cwd=emsdk_dir, shell=True, check=True)
     else:
-        subprocess.run(["source", "./emsdk_env.sh"], cwd=emsdk_dir, shell=True, check=True)
+        subprocess.run("./emsdk install latest", cwd=emsdk_dir, shell=True, check=True)
+        subprocess.run("./emsdk activate latest", cwd=emsdk_dir, shell=True, check=True)
+        subprocess.run("./emsdk activate --permanent", cwd=emsdk_dir, shell=True, check=True)
 
     
     if should_add_to_path:
@@ -415,7 +417,7 @@ def handle_self_install(args):
     add_cmake_to_path = get_yes_no("Add CMake to PATH?", default=True)
     add_vcpkg_to_path = get_yes_no("Add vcpkg to PATH?", default=True)    
     add_emsdk_to_path = get_yes_no("Add Emsdk to PATH?", default=True)
-    add_ninja_to_path = get_yes_no("Add Ninja to PATH? ⚠️ If not, You should already have Ninja installed and accesible from the path", default=True)
+    add_ninja_to_path = get_yes_no("Add Ninja to PATH?", default=True)
 
     if add_kmake_to_path:
         install_self()

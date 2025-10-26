@@ -1290,7 +1290,7 @@ namespace {project_name} {{
 
 def main():
     if platform.system() != "Windows":
-        required_tools = ["unzip", "zip", "tar", "pkg-config", "autoconf", "autoconf-archive", "automake", "libtool"]
+        required_tools = ["unzip", "zip", "tar", "pkg-config", "autoconf", "automake"]
 
         for tool in required_tools:
             if shutil.which(tool) is None:

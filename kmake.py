@@ -1117,8 +1117,9 @@ def handle_build(args):
                 except KeyboardInterrupt:
                     httpd.shutdown()
                     pass
-            # else:
-
+            else:
+                js_file = Path(build_dir) / "src" / project_name / f"{project_name}.js"
+                os.system(f"node {js_file}")
 
 
 def handle_doctor(args):

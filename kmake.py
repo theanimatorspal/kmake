@@ -1102,12 +1102,15 @@ def handle_build(args):
                 url = f"http://localhost:{port}/{project_name}.html"
 
                 # open browser
-                if sys.platform == "win32":
-                    os.system(f"start {url}")
-                elif sys.platform == "darwin":
-                    os.system(f"open {url}")
-                else:
-                    os.system(f"xdg-open {url}")
+                try:
+                    if sys.platform == "win32":
+                        os.system(f"start {url}")
+                    elif sys.platform == "darwin":
+                        os.system(f"open {url}")
+                    else:
+                        os.system(f"xdg-open {url}")
+                except:
+                    print("Autolaunching browser failed, just launch it yourself at:")
 
                 try:
                     httpd.serve_forever()

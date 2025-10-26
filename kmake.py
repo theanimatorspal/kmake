@@ -1286,7 +1286,7 @@ def main():
 
         for tool in required_tools:
             if shutil.which(tool) is None:
-                print(f"Error: {tool} is not installed. Please install it first.")
+                print(f"Error: {required_tools} is not installed. Please install it first.")
                 sys.exit(1)
 
         print("All required tools are installed ✅")

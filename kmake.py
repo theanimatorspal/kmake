@@ -1281,6 +1281,17 @@ namespace {project_name} {{
         Path(file2).write_text(f"""#include <{project_name}/{unit_name}.h>""")
 
 def main():
+    if platform.system() != "Windows":
+        required_tools = ["unzip", "zip", "tar"]
+
+        for tool in required_tools:
+            if shutil.which(tool) is None:
+                print(f"Error: {tool} is not installed. Please install it first.")
+                sys.exit(1)
+
+        print("All required tools are installed ✅")
+
+
     parser = argparse.ArgumentParser(
         description="A helper script for managing C++ development environments."
     )

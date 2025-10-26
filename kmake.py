@@ -637,10 +637,6 @@ def get_cmake_default_fill_string():
     cmake_start = r"""
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  
 function(RunOnce)
-"""
-
-    if platform.system() == "Windows":
-        cmake_start += """ 
 if(MSVC)
 if(POLICY CMP0141)
 cmake_policy(SET CMP0141 NEW)
@@ -650,9 +646,6 @@ endif()
 cmake_policy(SET CMP0069 NEW) 
 set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 
-        """
-
-        cmake_start += """
 if(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED)
 endif()
@@ -908,6 +901,10 @@ PrecompileStdHeaders({project_name})
 
 
         if is_main_project:
+            if project_name != build_file["PROJECT_NAME"]:
+                print("ERROR: PROJECT_NAME should match the name of last project in PROJECT_STRUCTURE")
+                sys.exit(1)
+
             cmake_text += f"""add_custom_command(
     TARGET {project_name} POST_BUILD
     COMMAND ${{CMAKE_COMMAND}} -E copy

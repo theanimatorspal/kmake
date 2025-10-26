@@ -336,6 +336,8 @@ def install_emsdk(base_dir: Path, should_add_to_path: bool = True) -> Path:
     if should_add_to_path:
         add_to_path(emsdk_dir)
         add_to_path(emsdk_dir / "upstream" / "emscripten")
+        node_bin = next((Path(emsdk_dir / "node").iterdir())).resolve() / "bin"
+        add_to_path(node_bin)
     
     print("✅ Emscripten SDK installed!")
     return emsdk_dir
@@ -944,6 +946,7 @@ def handle_build(args):
     import json
     should_ask = 'ask' in args.options if args.options else False
     should_run = 'run' in args.options if args.options else False
+    should_browser = 'browser' in args.options if args.options else False
     should_clean = 'clean' in args.options if args.options else False
     binary_args = []
     if should_run and args.options:
@@ -1054,65 +1057,68 @@ def handle_build(args):
             else:
                 print(f"\n✅ Program completed successfully!")
         else:
-            from http.server import HTTPServer, SimpleHTTPRequestHandler
-            import time
-            import threading
-            html_content = f"""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <title>{project_name}</title>
-                <style>
-                    html, body {{
-                        height: 100%;
-                        margin: 0;
-                    }}
-                    body {{
-                        display: flex;
-                        justify-content: center;  /* horizontal center */
-                        align-items: center;      /* vertical center */
-                        background-color: #111;   /* dark background */
-                    }}
-                    canvas {{
-                        width: 99vw;   /* 90% of viewport width */
-                        height: 99vh;  /* 90% of viewport height */
-                        border: 2px solid #fff; /* optional: see edges */
-                    }}
-                </style>
-            </head>
-            <body>
-                <canvas id="canvas" width="1600" height="1200"></canvas>
-                <script src="{project_name}.js"></script>
-            </body>
-            </html>
-            """
+            if should_browser:
+                from http.server import HTTPServer, SimpleHTTPRequestHandler
+                import time
+                import threading
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>{project_name}</title>
+                    <style>
+                        html, body {{
+                            height: 100%;
+                            margin: 0;
+                        }}
+                        body {{
+                            display: flex;
+                            justify-content: center;  /* horizontal center */
+                            align-items: center;      /* vertical center */
+                            background-color: #111;   /* dark background */
+                        }}
+                        canvas {{
+                            width: 99vw;   /* 90% of viewport width */
+                            height: 99vh;  /* 90% of viewport height */
+                            border: 2px solid #fff; /* optional: see edges */
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <canvas id="canvas" width="1600" height="1200"></canvas>
+                    <script src="{project_name}.js"></script>
+                </body>
+                </html>
+                """
 
-            binary_path = Path(build_dir) / "src" / project_name
-            os.chdir(binary_path)
+                binary_path = Path(build_dir) / "src" / project_name
+                os.chdir(binary_path)
 
-            Path(os.path.join(binary_path, f"{project_name}.html")).write_text(html_content)
+                Path(os.path.join(binary_path, f"{project_name}.html")).write_text(html_content)
 
-            # here write the html content to {project_name}.html file
-            # and then serve in this port
-            # open browser at http://localhost:3475/{project_name}.html
-            port = 3475
-            httpd = HTTPServer(("", port), SimpleHTTPRequestHandler)
-            url = f"http://localhost:{port}/{project_name}.html"
+                # here write the html content to {project_name}.html file
+                # and then serve in this port
+                # open browser at http://localhost:3475/{project_name}.html
+                port = 3475
+                httpd = HTTPServer(("", port), SimpleHTTPRequestHandler)
+                url = f"http://localhost:{port}/{project_name}.html"
 
-            # open browser
-            if sys.platform == "win32":
-                os.system(f"start {url}")
-            elif sys.platform == "darwin":
-                os.system(f"open {url}")
-            else:
-                os.system(f"xdg-open {url}")
+                # open browser
+                if sys.platform == "win32":
+                    os.system(f"start {url}")
+                elif sys.platform == "darwin":
+                    os.system(f"open {url}")
+                else:
+                    os.system(f"xdg-open {url}")
 
-            try:
-                httpd.serve_forever()
-            except KeyboardInterrupt:
-                httpd.shutdown()
-                pass
+                try:
+                    httpd.serve_forever()
+                except KeyboardInterrupt:
+                    httpd.shutdown()
+                    pass
+            # else:
+
 
 
 def handle_doctor(args):

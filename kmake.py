@@ -1218,8 +1218,9 @@ def handle_init(args):
         os.chdir(os.path.join(os.getcwd(), project_name))
     
     print("Now edit the build.py file and setup your project")
-    Path("build.py").write_text(r"""PROJECT_NAME = "kmake"
-PROJECT_LANGUAGE = "C++" # "C" or "C++"
+
+    text = f'PROJECT_NAME = "{project_name}"'
+    text += r"""PROJECT_LANGUAGE = "C++" # "C" or "C++"
 PROJECT_LANGUAGE_STANDARD = "20" # 11, 14, 17, 20 etc for C++ and 89, 99, 11, 23 etc for C
 PROJECT_COMPILER = "clang" # "clang" or "gcc" [whichever is installed/preferred] or "emcc" (for web-assembly)
 PROJECT_STANDARD_LIBRARY = "default" # can change to "none" for no std library
@@ -1256,7 +1257,8 @@ PROJECT_STRUCTURE = { # remember everywhere CURLY braces
 # Now run "kmake run"  in order to setup the files and get started,
 # use "kmake unit <project name> <unit name>" to create header + source file pair, like "kmake unit kmake main" will generate main.h/hpp and main.c/cpp respectively
 # run "kmake build run" in order to run your project(make sure to add a main function in src/file.cpp)                               
-""")
+"""
+    Path("build.py").write_text(text)
 
 def handle_unit(arg):
     build_file = get_build_file()
@@ -1291,11 +1293,11 @@ namespace {project_name} {{
 
 def main():
     if platform.system() != "Windows":
-        required_tools = ["unzip", "zip", "tar"]
+        required_tools = ["unzip", "zip", "tar", "pkg-config", "autoconf", "autoconf-archive", "automake", "libtool"]
 
         for tool in required_tools:
             if shutil.which(tool) is None:
-                print(f"Error: {required_tools} is not installed. Please install it first.")
+                print(f"Error: any of {required_tools} is not installed. Please install all of them first.")
                 sys.exit(1)
 
 

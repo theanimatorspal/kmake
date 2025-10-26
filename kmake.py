@@ -401,13 +401,13 @@ def install_vcpkg(base_dir: Path, should_add_to_path : bool) -> Path:
     return vcpkg_dir
 
 def install_self():
-    src_dir = Path(__file__).resolve().parent
-    if platform.system() == "Windows":
-        target_dir = src_dir
-    else:
-        target_dir = src_dir
-
+    target_dir = Path(__file__).resolve().parent
     add_to_path(target_dir)
+    if platform.system() != "Windows":
+        for py_file in target_dir.glob("*.py"):
+            py_file.chmod(py_file.stat().st_mode | 0o111)  # add executable bits
+        print(f"✅ Made Python files in {target_dir} executable")
+
     print(f"✅ Added {target_dir} to PATH")
 
 def handle_self_install(args):

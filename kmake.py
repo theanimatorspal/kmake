@@ -406,7 +406,7 @@ def install_self():
     if platform.system() != "Windows":
         for py_file in target_dir.glob("kmake"):
             py_file.chmod(py_file.stat().st_mode | 0o111)  # add executable bits
-        print(f"✅ Made Python files in {target_dir} executable")
+        print(f"✅ Made kmake in {target_dir} executable")
 
     print(f"✅ Added {target_dir} to PATH")
 
@@ -1297,8 +1297,6 @@ def main():
             if shutil.which(tool) is None:
                 print(f"Error: {required_tools} is not installed. Please install it first.")
                 sys.exit(1)
-
-        print("All required tools are installed ✅")
 
 
     parser = argparse.ArgumentParser(

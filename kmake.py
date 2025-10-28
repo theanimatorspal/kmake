@@ -1219,7 +1219,7 @@ def handle_init(args):
     
     print("Now edit the build.py file and setup your project")
 
-    text = f'PROJECT_NAME = "{project_name}\n"'
+    text = f'PROJECT_NAME = "{project_name}"\n'
     text += r"""PROJECT_LANGUAGE = "C++" # "C" or "C++"
 PROJECT_LANGUAGE_STANDARD = "20" # 11, 14, 17, 20 etc for C++ and 89, 99, 11, 23 etc for C
 PROJECT_COMPILER = "clang" # "clang" or "gcc" [whichever is installed/preferred] or "emcc" (for web-assembly)

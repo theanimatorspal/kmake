@@ -586,11 +586,10 @@ def get_cmake_preset_file_string(
       }}
     }}''')
     
+    strin = ",\n".join(presets)
     return f'''{{
   "version": 3,
-  "configurePresets": [
-{",\n".join(presets)}
-  ]
+  "configurePresets": [ {strin} ] 
 }}'''
 
 def clear_screen():
@@ -633,7 +632,7 @@ def get_yes_no(prompt, default=True):
             return False
         print("❌ Please enter 'y' or 'n'")
 
-def get_cmake_default_fill_string():
+def get_cmake_commons():
     cmake_start = r"""
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  
 function(RunOnce)
@@ -647,7 +646,7 @@ cmake_policy(SET CMP0069 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 
 if(WIN32)
-    add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_CRT_SECURE_NO_WARNINGS -D_SDL_MAIN_HANDLED)
+    add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_CRT_SECURE_NO_WARNINGS)
 endif()
 endfunction()
 
@@ -813,7 +812,7 @@ function(PrecompileStdHeaders TARGET_NAME)
         <cwchar>
         <cwctype>
 
-        # Third-Party Headers (Example: Vulkan, GLM, Sol2)
+    # Third-Party Headers (Example: Vulkan, GLM, Sol2)
     #     <sol/sol.hpp>
     #     <vulkan/vulkan.hpp>
     #     <glm/glm.hpp>
@@ -824,6 +823,7 @@ function(PrecompileStdHeaders TARGET_NAME)
     #     <glm/gtx/quaternion.hpp>
     #     <glm/ext.hpp>
     #     <glm/gtx/transform.hpp>
+
     )
 endfunction()
 """
@@ -839,9 +839,16 @@ def get_build_file():
 def handle_run(arg):
     build_file = get_build_file()
     Path("CMakePresets.json").write_text(get_cmake_preset_file_string(compiler=build_file["PROJECT_COMPILER"], platform_triplet=build_file["PROJECT_PLATFORM"]))
-    Path(".clang-format").write_text("""BasedOnStyle: Google
+    Path(".clang-format").write_text("""BasedOnStyle: LLVM
 IndentWidth: 4
 ColumnLimit: 100
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+KeepEmptyLinesAtTheStartOfBlocks: true
+
 """)
     project_names = []
     for project_name, project_detail in build_file["PROJECT_STRUCTURE"].items():
@@ -892,7 +899,7 @@ PrecompileStdHeaders({project_name})
                         if first:
                             cmake_text += f"target_link_libraries({project_name}"
                             first = False
-                        cmake_text += f" {dep}"
+                        cmake_text += f" PRIVATE {dep}"
                 if not first:
                     cmake_text += ")\n"
 
@@ -936,7 +943,15 @@ include_directories("src/{project_name}/include")
 add_subdirectory("src/{project_name}")
 """
             cmake_text += f""""""
-            Path("CMakeCommons.cmake").write_text(get_cmake_default_fill_string())
+            
+            add_to_commons = ""
+            if len(build_file["PROJECT_COMPILE_DEFINITIONS"]) > 0:
+                add_to_commons = "\n\nadd_definitions("
+                for key in build_file["PROJECT_COMPILE_DEFINITIONS"]:
+                    add_to_commons += "-D" + key + " "
+                add_to_commons += ")\n"
+
+            Path("CMakeCommons.cmake").write_text(get_cmake_commons() + add_to_commons)
             Path("CMakeLists.txt").write_text(cmake_text)
 
 def handle_build(args):
@@ -1264,23 +1279,48 @@ def handle_unit(arg):
     build_file = get_build_file()
     project_name = arg.project_name
     unit_name = arg.unit_name
+    guard_name = arg.project_name + "_" + arg.unit_name
     if build_file["PROJECT_LANGUAGE"] == "C++":
-        header_guard = f"_{unit_name.upper()}_HPP_"
-        file1 = os.path.join("src", project_name, "include", project_name, f"{unit_name}.hpp")
+        header_guard = f"_{guard_name.upper()}_HPP_"
+        file1 = os.path.join("src", project_name, "include", project_name, f"{unit_name}.h")
         file2 = os.path.join("src", project_name, "src", f"{unit_name}.cpp")
         header_text = f"""#ifndef {header_guard}
 #define {header_guard}
 
-namespace {project_name} {{
 
+#ifdef __cplusplus
+extern "C" {{
+#endif
+
+// SORRY FOR BEING OPNIONATED, please change this in kmake.py if you hold different opinion
+
+// Don't use C++ in headers, limit it to your source files
+// Just use C Features here, so that it is easy to create APIs (you can create bindings for any language that way)
+// Since C ABI is supported everywhere and is stable, your library/software will outlive you.
+// You can declare functions (with C signatures), structs (With only C features), No Namespaces, use your_libname_struct, your_libname_func and constants.
+// Define structs like this
+// typedef struct struct_name {{
+//      size_t size;
+// }} struct_name;
+
+// Start here (do #includes here as well, all C libraries only)
+
+
+
+// End here
+
+
+#ifdef __cplusplus
 }}
+#endif
+
 
 #endif // {header_guard}
 """
         Path(file1).write_text(header_text)
-        Path(file2).write_text(f"""#include <{project_name}/{unit_name}.hpp>""")
+        Path(file2).write_text(f"""#include <{project_name}/{unit_name}.h> """)
     else:
-        header_guard = f"_{unit_name.upper()}_H_"
+        header_guard = f"_{guard_name.upper()}_H_"
         file1 = os.path.join("src", project_name, "include", project_name, f"{unit_name}.h")
         file2 = os.path.join("src", project_name, "src", f"{unit_name}.c")
         header_text = f"""#ifndef {header_guard}
